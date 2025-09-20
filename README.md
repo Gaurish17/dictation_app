@@ -360,3 +360,4 @@ tail -f app.log
 - Technical Issues: [Your support email]
 - Deployment Help: [Your deployment support]
 - Feature Requests: [Your feature request email]
+# dictation_app
