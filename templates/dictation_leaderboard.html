@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dictation Leaderboard - Audio Dictation Practice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-cyan-100 min-h-screen">
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-full mx-auto px-6 py-3">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('practice_selection') }}" class="text-blue-600 hover:text-blue-800">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                    </a>
+                    <h1 class="text-xl font-bold text-gray-800">Dictation Leaderboard</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">
+                        Welcome, <span class="font-medium">{{ session.username }}</span>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ml-2">Student</span>
+                    </span>
+                    <a href="{{ url_for('logout') }}" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-full mx-auto px-6 py-8">
+        <div class="max-w-full mx-auto">
+            <!-- Header Section -->
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-4">
+                    <svg class="inline-block h-8 w-8 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                    </svg>
+                    Dictation Leaderboard
+                </h1>
+                <p class="text-xl text-gray-600">Top performers in dictation practice</p>
+            </div>
+
+            <!-- Filter Section -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex flex-wrap gap-4 items-center">
+                    <select id="timeFilter" class="border border-gray-300 rounded px-3 py-2">
+                        <option value="all">All Time</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                    </select>
+                    <select id="audioFilter" class="border border-gray-300 rounded px-3 py-2">
+                        <option value="all">All Audio Files</option>
+                        {% for audio in available_audios %}
+                        <option value="{{ audio.id }}">{{ audio.filename }}</option>
+                        {% endfor %}
+                    </select>
+                    <button onclick="filterLeaderboard()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                        Apply Filter
+                    </button>
+                </div>
+            </div>
+
+            <!-- Leaderboard Table -->
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="px-6 py-4 bg-gradient-to-r from-blue-600 to-cyan-600">
+                    <h2 class="text-xl font-bold text-white">Top Performers</h2>
+                </div>
+                
+                {% if leaderboard_data %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Audio File</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Accuracy</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Taken</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for entry in leaderboard_data %}
+                            <tr class="{% if entry.username == session.username %}bg-blue-50{% endif %}">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        {% if loop.index == 1 %}
+                                            <span class="text-2xl">🥇</span>
+                                        {% elif loop.index == 2 %}
+                                            <span class="text-2xl">🥈</span>
+                                        {% elif loop.index == 3 %}
+                                            <span class="text-2xl">🥉</span>
+                                        {% else %}
+                                            <span class="text-lg font-bold text-gray-600">#{{ loop.index }}</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ entry.username }}
+                                        {% if entry.username == session.username %}
+                                            <span class="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">You</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">{{ entry.audio_filename }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
+                                            {% if entry.accuracy >= 90 %}bg-green-100 text-green-800
+                                            {% elif entry.accuracy >= 75 %}bg-yellow-100 text-yellow-800
+                                            {% else %}bg-red-100 text-red-800{% endif %}">
+                                            {{ "%.1f"|format(entry.accuracy) }}%
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ entry.time_taken }} min
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ entry.completed_at.strftime('%Y-%m-%d') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-bold text-blue-600">{{ entry.score }}</div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No dictation results yet</h3>
+                    <p class="mt-1 text-sm text-gray-500">Start practicing to see your ranking on the leaderboard!</p>
+                    <div class="mt-6">
+                        <a href="{{ url_for('dictation_practice') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                            Start Dictation Practice
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Your Stats Section -->
+            {% if user_stats %}
+            <div class="mt-8 bg-white rounded-lg shadow-lg p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Your Performance Summary</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-blue-600">{{ user_stats.total_attempts }}</div>
+                        <div class="text-sm text-gray-600">Total Attempts</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-600">{{ "%.1f"|format(user_stats.average_accuracy) }}%</div>
+                        <div class="text-sm text-gray-600">Average Accuracy</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-purple-600">{{ user_stats.best_score }}</div>
+                        <div class="text-sm text-gray-600">Best Score</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-orange-600">#{{ user_stats.current_rank }}</div>
+                        <div class="text-sm text-gray-600">Current Rank</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function filterLeaderboard() {
+            const timeFilter = document.getElementById('timeFilter').value;
+            const audioFilter = document.getElementById('audioFilter').value;
+            
+            // Show loading state
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = 'Filtering...';
+            button.disabled = true;
+            
+            // Make API request to filter leaderboard
+            fetch('/api/filter-dictation-leaderboard', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    timeFilter: timeFilter,
+                    audioFilter: audioFilter
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateLeaderboardTable(data.leaderboard_data);
+                } else {
+                    alert('Error filtering leaderboard: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error filtering leaderboard. Please try again.');
+            })
+            .finally(() => {
+                // Reset button
+                button.textContent = originalText;
+                button.disabled = false;
+            });
+        }
+        
+        function updateLeaderboardTable(leaderboardData) {
+            const tbody = document.querySelector('tbody');
+            
+            if (leaderboardData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                            </svg>
+                            <h3 class="mt-2 text-sm font-medium text-gray-900">No results found</h3>
+                            <p class="mt-1 text-sm text-gray-500">Try adjusting your filter criteria.</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            let tableHTML = '';
+            leaderboardData.forEach((entry, index) => {
+                const rank = index + 1;
+                let rankDisplay = '';
+                
+                if (rank === 1) {
+                    rankDisplay = '<span class="text-2xl">🥇</span>';
+                } else if (rank === 2) {
+                    rankDisplay = '<span class="text-2xl">🥈</span>';
+                } else if (rank === 3) {
+                    rankDisplay = '<span class="text-2xl">🥉</span>';
+                } else {
+                    rankDisplay = `<span class="text-lg font-bold text-gray-600">#${rank}</span>`;
+                }
+                
+                const isCurrentUser = entry.username === '{{ session.username }}';
+                const rowClass = isCurrentUser ? 'bg-blue-50' : '';
+                const userBadge = isCurrentUser ? '<span class="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">You</span>' : '';
+                
+                let accuracyClass = 'bg-red-100 text-red-800';
+                if (entry.accuracy >= 90) accuracyClass = 'bg-green-100 text-green-800';
+                else if (entry.accuracy >= 75) accuracyClass = 'bg-yellow-100 text-yellow-800';
+                
+                tableHTML += `
+                    <tr class="${rowClass}">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">${rankDisplay}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">
+                                ${entry.username}${userBadge}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${entry.audio_filename}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${accuracyClass}">
+                                    ${entry.accuracy.toFixed(1)}%
+                                </span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ${entry.time_taken} min
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            ${entry.completed_at}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-bold text-blue-600">${entry.score}</div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = tableHTML;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Typing Practice - Audio Dictation Practice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .typing-area { 
+            height: 500px; 
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+            font-size: 16px;
+            padding: 1.5rem !important;
+            overflow-y: auto;
+        }
+        .reference-text {
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+            font-size: 16px;
+            background-color: #f8fafc;
+            border: 2px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 1.5rem;
+            height: 500px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            max-width: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .char-correct { background-color: #dcfce7; color: #166534; }
+        .char-incorrect { background-color: #fecaca; color: #dc2626; }
+        .char-missing { background-color: #fef3c7; color: #d97706; }
+        .char-current { background-color: #dbeafe; color: #1d4ed8; border-left: 2px solid #3b82f6; }
+        .timer-warning { animation: pulse 1s infinite; }
+        .stats-card { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .no-copy {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-full mx-auto px-6 py-3">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('typing_practice') }}" class="text-green-600 hover:text-green-800">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                    </a>
+                    <h1 class="text-xl font-bold text-gray-800">Advanced Typing Practice</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">
+                        Welcome, <span class="font-medium">{{ session.username }}</span>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 ml-2">Student</span>
+                    </span>
+                    <a href="{{ url_for('logout') }}" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="w-full px-2 py-8">
+        <div class="max-w-full mx-auto px-4">
+            <!-- Practice Header -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">{{ passage.title }}</h2>
+                        <p class="text-gray-600">Words: {{ passage.word_count }} | Created: {{ passage.created_at.strftime('%Y-%m-%d') }}</p>
+                    </div>
+                    <div class="text-right">
+                        <div id="timer" class="text-3xl font-bold text-green-600">00:00</div>
+                        <div class="text-sm text-gray-500">Time Elapsed</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Statistics Bar -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div class="stats-card rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold" id="wpmDisplay">0</div>
+                    <div class="text-sm opacity-90">WPM</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 text-center">
+                    <div class="text-2xl font-bold text-blue-600" id="accuracyDisplay">100%</div>
+                    <div class="text-sm text-gray-600">Accuracy</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 text-center">
+                    <div class="text-2xl font-bold text-green-600" id="correctDisplay">0</div>
+                    <div class="text-sm text-gray-600">Correct</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 text-center">
+                    <div class="text-2xl font-bold text-red-600" id="errorsDisplay">0</div>
+                    <div class="text-sm text-gray-600">Errors</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 text-center">
+                    <div class="text-2xl font-bold text-purple-600" id="progressDisplay">0%</div>
+                    <div class="text-sm text-gray-600">Progress</div>
+                </div>
+            </div>
+
+            <!-- Practice Interface -->
+            <div class="grid lg:grid-cols-3 gap-6">
+                <!-- Control Panel -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-lg shadow-lg p-6 sticky top-4">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Practice Settings</h3>
+                        
+                        <!-- Practice Mode -->
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Difficulty Mode</label>
+                                <select id="difficultyMode" class="w-full border border-gray-300 rounded px-3 py-2">
+                                    <option value="normal">Normal Mode</option>
+                                    <option value="strict">Strict Mode (No Corrections)</option>
+                                    <option value="timed">Timed Challenge</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Time Limit (minutes)</label>
+                                <select id="timeLimit" class="w-full border border-gray-300 rounded px-3 py-2">
+                                    <option value="0">No Limit</option>
+                                    <option value="1">1 minute</option>
+                                    <option value="2">2 minutes</option>
+                                    <option value="5">5 minutes</option>
+                                    <option value="10">10 minutes</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Features</label>
+                                <div class="space-y-2">
+                                    <div class="flex items-center">
+                                        <input type="checkbox" id="highlightErrors" class="rounded border-gray-300" checked>
+                                        <label for="highlightErrors" class="ml-2 text-sm text-gray-600">Highlight errors</label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input type="checkbox" id="playSound" class="rounded border-gray-300">
+                                        <label for="playSound" class="ml-2 text-sm text-gray-600">Sound effects</label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input type="checkbox" id="autoSubmit" class="rounded border-gray-300" checked>
+                                        <label for="autoSubmit" class="ml-2 text-sm text-gray-600">Auto-submit when complete</label>
+                                    </div>
+                                    <div class="mt-1 text-xs text-gray-500" id="autoSubmitInfo">
+                                        • Auto-submit 2 seconds after text completion<br>
+                                        • Auto-submit 3 seconds after time limit (if set)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Control Buttons -->
+                        <div class="mt-6 space-y-2">
+                            <button id="startPractice" class="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-medium">
+                                Start Typing Practice
+                            </button>
+                            <button id="pausePractice" class="w-full bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 font-medium" style="display: none;">
+                                Pause Practice
+                            </button>
+                            <button id="resetPractice" class="w-full bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 font-medium" style="display: none;">
+                                Reset Practice
+                            </button>
+                            <button id="submitPractice" class="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium" style="display: none;">
+                                Submit Results
+                            </button>
+                        </div>
+
+                        <!-- Target WPM -->
+                        <div class="mt-6 pt-6 border-t border-gray-200">
+                            <h4 class="text-sm font-medium text-gray-700 mb-3">Target Speed Goals</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span>Beginner:</span>
+                                    <span class="text-red-600">20-30 WPM</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Intermediate:</span>
+                                    <span class="text-yellow-600">30-50 WPM</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Advanced:</span>
+                                    <span class="text-green-600">50+ WPM</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Split Screen Practice Area -->
+                <div class="lg:col-span-2">
+                    <!-- Instructions -->
+                    <div id="instructions" class="bg-green-50 border border-green-200 rounded p-4 mb-4">
+                        <p class="text-green-800 text-sm">
+                            ⌨️ <strong>Instructions:</strong> Type the text exactly as shown in the reference panel. 
+                            Click "Start Typing Practice" to begin timing your practice session.
+                        </p>
+                    </div>
+
+                    <!-- Time Warning -->
+                    <div id="timeWarning" class="bg-red-50 border border-red-200 rounded p-4 mb-4 timer-warning" style="display: none;">
+                        <p class="text-red-800 text-sm font-medium">
+                            ⏰ <strong>Time Warning:</strong> <span id="warningMessage"></span>
+                        </p>
+                    </div>
+
+                    <!-- Reference Text Panel - Full Width -->
+                    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">📄 Reference Text</h3>
+                        <div id="referenceText" class="reference-text no-copy">
+                            {{ passage.content }}
+                        </div>
+                    </div>
+
+                    <!-- Typing Area Panel - Full Width -->
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">✍️ Your Typing</h3>
+                        <textarea 
+                            id="typingArea" 
+                            class="w-full border border-gray-300 rounded px-4 py-3 typing-area resize-none"
+                            placeholder="Click 'Start Practice' to begin typing..."
+                            disabled
+                            spellcheck="false"
+                            autocomplete="off"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            onpaste="return false;"
+                            ondrop="return false;"
+                            oncontextmenu="return false;"
+                        ></textarea>
+                        
+                        <!-- Progress Bar -->
+                        <div class="mt-4">
+                            <div class="flex justify-between text-sm text-gray-600 mb-1">
+                                <span>Progress</span>
+                                <span id="progressText">0 / {{ passage.word_count }} words</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div id="progressBar" class="bg-green-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Passage data as JSON -->
+    <script type="application/json" id="passage-data">
+        {
+            "content": {{ passage.content|tojson }},
+            "wordCount": {{ passage.word_count or 0 }},
+            "id": {{ passage.id }}
+        }
+    </script>
+
+    <!-- JavaScript for Advanced Typing Practice -->
+    <script>
+        // Load passage data from JSON
+        const passageData = JSON.parse(document.getElementById('passage-data').textContent);
+        const referenceText = passageData.content;
+        const wordCount = passageData.wordCount;
+        
+        let practiceStartTime = null;
+        let practiceTimer = null;
+        let practiceTimeLimit = null;
+        let isPracticeActive = false;
+        let autoSubmitTimeout = null;
+        let currentPosition = 0;
+        let correctChars = 0;
+        let totalChars = 0;
+        let errors = 0;
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const typingArea = document.getElementById('typingArea');
+            
+            // Set up event listeners
+            document.getElementById('startPractice').addEventListener('click', startPractice);
+            document.getElementById('pausePractice').addEventListener('click', pausePractice);
+            document.getElementById('resetPractice').addEventListener('click', resetPractice);
+            document.getElementById('submitPractice').addEventListener('click', submitPractice);
+            
+            // Typing area events
+            typingArea.addEventListener('input', handleTypingInput);
+            typingArea.addEventListener('keydown', handleKeyDown);
+            typingArea.addEventListener('paste', handlePaste);
+            
+            // Settings change
+            document.getElementById('difficultyMode').addEventListener('change', updateDifficultyMode);
+        });
+
+        function startPractice() {
+            practiceStartTime = new Date();
+            isPracticeActive = true;
+            currentPosition = 0;
+            correctChars = 0;
+            totalChars = 0;
+            errors = 0;
+            
+            // Enable typing area
+            const typingArea = document.getElementById('typingArea');
+            typingArea.disabled = false;
+            typingArea.placeholder = "Start typing the reference text...";
+            typingArea.focus();
+            
+            // Disable all settings during practice
+            disableSettings(true);
+            
+            // Update UI
+            document.getElementById('startPractice').style.display = 'none';
+            document.getElementById('pausePractice').style.display = 'block';
+            document.getElementById('resetPractice').style.display = 'block';
+            document.getElementById('submitPractice').style.display = 'block';
+            document.getElementById('instructions').style.display = 'none';
+            
+            // Start timer
+            startTimer();
+            
+            // Set up time limit if enabled
+            setupTimeLimit();
+            
+            // Initialize reference text highlighting
+            highlightReferenceText();
+        }
+
+        function pausePractice() {
+            isPracticeActive = false;
+            clearInterval(practiceTimer);
+            clearTimeout(autoSubmitTimeout);
+            
+            // Keep settings disabled during pause
+            const typingArea = document.getElementById('typingArea');
+            typingArea.disabled = true;
+            
+            // Update UI
+            document.getElementById('pausePractice').style.display = 'none';
+            document.getElementById('startPractice').style.display = 'block';
+            document.getElementById('startPractice').textContent = 'Resume Practice';
+        }
+
+        function resetPractice() {
+            // Reset all variables
+            isPracticeActive = false;
+            practiceStartTime = null;
+            currentPosition = 0;
+            correctChars = 0;
+            totalChars = 0;
+            errors = 0;
+            
+            // Clear timers
+            clearInterval(practiceTimer);
+            clearTimeout(autoSubmitTimeout);
+            
+            // Re-enable settings
+            disableSettings(false);
+            
+            // Reset UI
+            document.getElementById('typingArea').value = '';
+            document.getElementById('typingArea').disabled = true;
+            document.getElementById('typingArea').placeholder = "Click 'Start Practice' to begin typing...";
+            document.getElementById('timer').textContent = '00:00';
+            document.getElementById('startPractice').style.display = 'block';
+            document.getElementById('startPractice').textContent = 'Start Typing Practice';
+            document.getElementById('pausePractice').style.display = 'none';
+            document.getElementById('resetPractice').style.display = 'none';
+            document.getElementById('submitPractice').style.display = 'none';
+            document.getElementById('instructions').style.display = 'block';
+            document.getElementById('timeWarning').style.display = 'none';
+            
+            // Reset stats
+            updateStats();
+            highlightReferenceText();
+        }
+
+        function submitPractice() {
+            const typedText = document.getElementById('typingArea').value;
+            const practiceEndTime = new Date();
+            const totalTime = Math.floor((practiceEndTime - practiceStartTime) / 1000);
+            const wpm = calculateWPM();
+            const accuracy = calculateAccuracy();
+            
+            // Submit to server
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ url_for("submit_typing_practice") }}';
+            
+            const fields = {
+                'passage_id': passageData.id,
+                'typed_text': typedText,
+                'time_taken': totalTime,
+                'wpm': wpm,
+                'accuracy': accuracy,
+                'errors': errors,
+                'practice_mode': document.getElementById('difficultyMode').value
+            };
+            
+            Object.keys(fields).forEach(key => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = fields[key];
+                form.appendChild(input);
+            });
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function startTimer() {
+            practiceTimer = setInterval(function() {
+                if (isPracticeActive) {
+                    const elapsed = Math.floor((new Date() - practiceStartTime) / 1000);
+                    const minutes = Math.floor(elapsed / 60);
+                    const seconds = elapsed % 60;
+                    document.getElementById('timer').textContent = 
+                        String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+                    
+                    // Update WPM
+                    updateStats();
+                    
+                    // Check time limits
+                    checkTimeWarnings(elapsed);
+                }
+            }, 1000);
+        }
+
+        function setupTimeLimit() {
+            const timeLimit = parseInt(document.getElementById('timeLimit').value);
+            if (timeLimit > 0) {
+                practiceTimeLimit = timeLimit * 60; // Convert to seconds
+                
+                        // Set auto-submit timeout
+                        autoSubmitTimeout = setTimeout(function() {
+                            if (isPracticeActive) {
+                                document.getElementById('timeWarning').style.display = 'block';
+                                document.getElementById('warningMessage').textContent = 'Time is up! Auto-submitting in 3 seconds...';
+                                
+                                // Always auto-submit when time is up (ignore checkbox setting for consistency)
+                                setTimeout(function() {
+                                    if (isPracticeActive) {
+                                        submitPractice();
+                                    }
+                                }, 3000);
+                            }
+                        }, practiceTimeLimit * 1000);
+            }
+        }
+
+        function handleTypingInput(event) {
+            if (!isPracticeActive) return;
+            
+            const typedText = event.target.value;
+            totalChars = typedText.length;
+            currentPosition = totalChars;
+            
+            // Calculate accuracy in real-time
+            calculateRealTimeAccuracy(typedText);
+            
+            // Update stats
+            updateStats();
+            
+            // Highlight reference text
+            if (document.getElementById('highlightErrors').checked) {
+                highlightReferenceText();
+            }
+            
+            // Check if completed
+            if (typedText.length >= referenceText.length) {
+                if (document.getElementById('autoSubmit').checked) {
+                    document.getElementById('timeWarning').style.display = 'block';
+                    document.getElementById('warningMessage').textContent = 'Practice completed! Auto-submitting in 2 seconds...';
+                    setTimeout(function() {
+                        if (isPracticeActive) {
+                            submitPractice();
+                        }
+                    }, 2000);
+                } else {
+                    // Show completion message but don't auto-submit
+                    document.getElementById('timeWarning').style.display = 'block';
+                    document.getElementById('warningMessage').textContent = 'Practice completed! Click "Submit Results" to finish.';
+                    document.getElementById('timeWarning').className = 'bg-green-50 border border-green-200 rounded p-4 mb-4';
+                    document.getElementById('warningMessage').className = 'text-green-800 text-sm font-medium';
+                }
+            }
+        }
+
+        function handleKeyDown(event) {
+            if (!isPracticeActive) return;
+            
+            const mode = document.getElementById('difficultyMode').value;
+            
+            // Prevent certain keys in strict mode
+            if (mode === 'strict') {
+                if (event.key === 'Backspace' || event.key === 'Delete') {
+                    event.preventDefault();
+                    return false;
+                }
+            }
+            
+            // Play sound effect if enabled
+            if (document.getElementById('playSound').checked) {
+                // Would play typing sound here
+            }
+        }
+
+        function handlePaste(event) {
+            const mode = document.getElementById('difficultyMode').value;
+            if (mode === 'strict' || mode === 'timed') {
+                event.preventDefault();
+                return false;
+            }
+        }
+
+        function calculateRealTimeAccuracy(typedText) {
+            correctChars = 0;
+            errors = 0;
+            
+            for (let i = 0; i < typedText.length; i++) {
+                if (i < referenceText.length && typedText[i] === referenceText[i]) {
+                    correctChars++;
+                } else {
+                    errors++;
+                }
+            }
+        }
+
+        function calculateWPM() {
+            if (!practiceStartTime) return 0;
+            const elapsed = (new Date() - practiceStartTime) / 1000 / 60; // minutes
+            const wordsTyped = correctChars / 5; // Standard: 5 characters = 1 word
+            return elapsed > 0 ? Math.round(wordsTyped / elapsed) : 0;
+        }
+
+        function calculateAccuracy() {
+            return totalChars > 0 ? Math.round((correctChars / totalChars) * 100) : 100;
+        }
+
+        function updateStats() {
+            const wpm = calculateWPM();
+            const accuracy = calculateAccuracy();
+            const progress = Math.round((currentPosition / referenceText.length) * 100);
+            
+            document.getElementById('wpmDisplay').textContent = wpm;
+            document.getElementById('accuracyDisplay').textContent = accuracy + '%';
+            document.getElementById('correctDisplay').textContent = correctChars;
+            document.getElementById('errorsDisplay').textContent = errors;
+            document.getElementById('progressDisplay').textContent = progress + '%';
+            document.getElementById('progressText').textContent = 
+                Math.round(correctChars / 5) + ' / ' + wordCount + ' words';
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        function highlightReferenceText() {
+            const refElement = document.getElementById('referenceText');
+            const typedText = document.getElementById('typingArea').value;
+            let highlightedText = '';
+            
+            for (let i = 0; i < referenceText.length; i++) {
+                const char = referenceText[i];
+                
+                if (i < typedText.length) {
+                    if (typedText[i] === char) {
+                        highlightedText += `<span class="char-correct">${char === ' ' ? '&nbsp;' : char}</span>`;
+                    } else {
+                        highlightedText += `<span class="char-incorrect">${char === ' ' ? '&nbsp;' : char}</span>`;
+                    }
+                } else if (i === typedText.length) {
+                    highlightedText += `<span class="char-current">${char === ' ' ? '&nbsp;' : char}</span>`;
+                } else {
+                    highlightedText += char === ' ' ? '&nbsp;' : char;
+                }
+            }
+            
+            refElement.innerHTML = highlightedText;
+        }
+
+        function checkTimeWarnings(elapsed) {
+            if (practiceTimeLimit) {
+                const remaining = practiceTimeLimit - elapsed;
+                
+                if (remaining <= 30 && remaining > 0) {
+                    document.getElementById('timeWarning').style.display = 'block';
+                    document.getElementById('warningMessage').textContent = remaining + ' seconds remaining!';
+                } else if (remaining <= 0) {
+                    document.getElementById('timeWarning').style.display = 'block';
+                    document.getElementById('warningMessage').textContent = 'Time is up!';
+                }
+            }
+        }
+
+        function updateDifficultyMode() {
+            const mode = document.getElementById('difficultyMode').value;
+            const typingArea = document.getElementById('typingArea');
+            
+            if (mode === 'strict') {
+                typingArea.placeholder = "Strict mode: No backspace, delete, or paste allowed.";
+            } else if (mode === 'timed') {
+                typingArea.placeholder = "Timed mode: Complete as quickly as possible with accuracy.";
+            } else {
+                typingArea.placeholder = "Normal mode: Take your time and focus on accuracy.";
+            }
+        }
+        
+        // Function to disable/enable settings during practice
+        function disableSettings(disable) {
+            const settingsElements = [
+                'difficultyMode',
+                'timeLimit',
+                'highlightErrors',
+                'playSound',
+                'autoSubmit'
+            ];
+            
+            settingsElements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.disabled = disable;
+                    if (disable) {
+                        element.style.opacity = '0.5';
+                        element.style.cursor = 'not-allowed';
+                    } else {
+                        element.style.opacity = '1';
+                        element.style.cursor = 'pointer';
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

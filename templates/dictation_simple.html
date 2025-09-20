@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dictation Practice - {{ audio.title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Text size classes */
+        .text-xs-custom { font-size: 10px !important; }
+        .text-sm-custom { font-size: 12px !important; }
+        .text-base-custom { font-size: 14px !important; }
+        .text-lg-custom { font-size: 16px !important; }
+        .text-xl-custom { font-size: 18px !important; }
+        .text-2xl-custom { font-size: 20px !important; }
+        .text-3xl-custom { font-size: 22px !important; }
+        .text-4xl-custom { font-size: 24px !important; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="w-full px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-6">
+                    <div class="flex items-center space-x-3">
+                        <a href="{{ url_for('dictation_practice') }}" class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg hover:bg-blue-700">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                            </svg>
+                        </a>
+                        <h1 class="text-2xl font-bold text-gray-800">{{ audio.title }}</h1>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Timer -->
+                    <div id="timer" class="bg-red-100 text-red-800 px-4 py-2 rounded-xl font-bold text-lg">00:00</div>
+                    
+                    <!-- User Info -->
+                    <div class="flex items-center space-x-3 bg-gray-100 px-4 py-2 rounded-xl">
+                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                            <span class="text-white text-sm font-bold">{{ session.username[0].upper() }}</span>
+                        </div>
+                        <div>
+                            <div class="font-medium text-gray-800">{{ session.username }}</div>
+                            <div class="text-xs text-gray-600">Student</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Logout Button -->
+                    <a href="{{ url_for('logout') }}" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-lg font-medium">
+                        <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="w-full px-4 py-6">
+        <div class="max-w-6xl mx-auto">
+        <!-- Practice Header -->
+        <div class="bg-white shadow rounded-lg mb-6">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">{{ audio.title }}</h1>
+                        <p class="mt-1 text-sm text-gray-500">Listen carefully and type what you hear</p>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                            Dictation Practice
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Steps -->
+        <div class="bg-white shadow rounded-lg mb-6">
+            <div class="px-6 py-5">
+                <nav aria-label="Progress">
+                    <ol class="flex items-center">
+                        <li class="relative pr-8 sm:pr-20">
+                            <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                                <div class="h-0.5 w-full bg-gray-200"></div>
+                            </div>
+                            <div id="step1-indicator" class="relative w-8 h-8 flex items-center justify-center bg-indigo-600 rounded-full">
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
+                                    <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <span class="ml-4 min-w-0 flex flex-col">
+                                <span class="text-xs font-semibold tracking-wide uppercase text-indigo-600">Step 1</span>
+                                <span class="text-sm font-medium text-gray-500">Listen to Audio</span>
+                            </span>
+                        </li>
+                        <li class="relative">
+                            <div id="step2-indicator" class="w-8 h-8 flex items-center justify-center bg-gray-200 rounded-full">
+                                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                </svg>
+                            </div>
+                            <span class="ml-4 min-w-0 flex flex-col">
+                                <span class="text-xs font-semibold tracking-wide uppercase text-gray-500">Step 2</span>
+                                <span class="text-sm font-medium text-gray-500">Type Response</span>
+                            </span>
+                        </li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Phase 1: Audio Listening -->
+        <div id="listeningPhase" class="bg-white shadow rounded-lg mb-6">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900 flex items-center">
+                    <svg class="w-5 h-5 text-indigo-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142m-5.658-2.121a3 3 0 010-4.243"></path>
+                    </svg>
+                    Audio Listening Phase
+                </h3>
+            </div>
+            <div class="px-6 py-5">
+                <div class="rounded-md bg-blue-50 p-4 mb-6">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-blue-800">Instructions</h3>
+                            <div class="mt-2 text-sm text-blue-700">
+                                <p>Click the play button to start the audio. Listen carefully and pay attention to pronunciation, pace, and punctuation. The audio will play only once.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audio Player -->
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <div class="text-center">
+                        <div id="audioStatus" class="text-lg font-medium text-gray-700 mb-4">Ready to play audio</div>
+                        <button id="playAudioBtn" 
+                                class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-6 4h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                            </svg>
+                            Play Audio
+                        </button>
+                        <audio id="audioPlayer" preload="metadata" style="display: none;">
+                            <source src="{{ url_for('uploaded_file', filename=audio.filename) }}" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                    <div class="mt-6">
+                        <div class="flex items-center justify-between text-sm text-gray-500 mb-2">
+                            <span>Progress</span>
+                            <span id="audioTime">0:00 / 0:00</span>
+                        </div>
+                        <div id="audioProgress" class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="audioProgressBar" class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 2: Typing (Hidden initially) -->
+        <div id="typingPhase" class="bg-white shadow rounded-lg" style="display: none;">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900 flex items-center">
+                    <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                    Typing Phase
+                </h3>
+            </div>
+            <div class="px-6 py-5">
+                <div class="rounded-md bg-green-50 p-4 mb-6">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-green-800">Ready to Type</h3>
+                            <div class="mt-2 text-sm text-green-700">
+                                <p>Type exactly what you heard. You have 15 minutes to complete this task. Focus on accuracy over speed.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Time Warning -->
+                <div id="timeWarning" class="rounded-md bg-red-50 p-4 mb-6" style="display: none;">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800">Time Warning</h3>
+                            <div class="mt-2 text-sm text-red-700">
+                                <p id="warningMessage"></p>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+
+                <!-- Typing Area -->
+                <div class="mb-6">
+                    <label for="typingArea" class="block text-sm font-medium text-gray-700 mb-2">Your Response</label>
+                    <textarea
+                        id="typingArea"
+                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-base-custom"
+                        rows="12"
+                        style="resize: none; min-height: 300px;"
+                        placeholder="The typing area will be enabled after you listen to the audio..."
+                        disabled
+                        spellcheck="false"
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="off"
+                        onpaste="return false;"
+                        ondrop="return false;"
+                        oncontextmenu="return false;"
+                    ></textarea>
+                    <p class="mt-2 text-sm text-gray-500">
+                        Type what you heard from the audio recording. Use the buttons below to adjust text size.
+                    </p>
+                    <!-- Text size controls -->
+                    <div class="mt-2 flex space-x-2 items-center">
+                        <span class="text-xs text-gray-500">Text Size:</span>
+                        <button type="button" onclick="changeTextSize('smaller')" class="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+                            🔤 Smaller
+                        </button>
+                        <button type="button" onclick="changeTextSize('larger')" class="px-3 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200">
+                            🔠 Larger
+                        </button>
+                        <button type="button" onclick="changeTextSize('reset')" class="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+                            🔄 Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end">
+                    <button id="submitBtn" 
+                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors" 
+                            disabled>
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                        Submit Response
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced JavaScript -->
+<script>
+    let audioPlayer = null;
+    let practiceStartTime = null;
+    let typingStartTime = null;
+    let typingTimer = null;
+    let isAudioPlaying = false;
+    let isAudioFinished = false;
+    let isTypingPhase = false;
+    const TYPING_TIME_LIMIT = 15 * 60; // 15 minutes in seconds
+
+    document.addEventListener('DOMContentLoaded', function() {
+        audioPlayer = document.getElementById('audioPlayer');
+        
+        // Set up event listeners
+        document.getElementById('playAudioBtn').addEventListener('click', startAudio);
+        document.getElementById('submitBtn').addEventListener('click', submitPractice);
+        document.getElementById('typingArea').addEventListener('input', updateWordCount);
+        
+        // Audio player events
+        audioPlayer.addEventListener('timeupdate', updateAudioProgress);
+        audioPlayer.addEventListener('ended', onAudioFinished);
+        audioPlayer.addEventListener('error', onAudioError);
+        audioPlayer.addEventListener('loadedmetadata', onAudioLoaded);
+    });
+
+    function startAudio() {
+        practiceStartTime = new Date();
+        isAudioPlaying = true;
+        
+        // Update step indicator
+        updateStepIndicator(1, 'active');
+        
+        // Disable play button and show status
+        const playBtn = document.getElementById('playAudioBtn');
+        playBtn.disabled = true;
+        playBtn.innerHTML = `
+            <svg class="w-5 h-5 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Playing Audio...
+        `;
+        document.getElementById('audioStatus').textContent = 'Audio is playing - listen carefully';
+        
+        // Start audio playback
+        audioPlayer.play().then(() => {
+            console.log('Audio started successfully');
+        }).catch(error => {
+            console.error('Audio play failed:', error);
+            onAudioError();
+        });
+    }
+
+    function updateAudioProgress() {
+        if (audioPlayer.duration) {
+            const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+            document.getElementById('audioProgressBar').style.width = progress + '%';
+            
+            // Update time display
+            const currentTime = formatTime(audioPlayer.currentTime);
+            const totalTime = formatTime(audioPlayer.duration);
+            document.getElementById('audioTime').textContent = `${currentTime} / ${totalTime}`;
+        }
+    }
+
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function onAudioFinished() {
+        console.log('Audio finished playing');
+        isAudioPlaying = false;
+        isAudioFinished = true;
+        
+        // Update step indicators
+        updateStepIndicator(1, 'completed');
+        updateStepIndicator(2, 'active');
+        
+        // Update status
+        document.getElementById('audioStatus').textContent = 'Audio completed! Ready to type.';
+        const playBtn = document.getElementById('playAudioBtn');
+        playBtn.innerHTML = `
+            <svg class="w-5 h-5 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+            </svg>
+            Audio Completed
+        `;
+        
+        // Show typing phase
+        document.getElementById('typingPhase').style.display = 'block';
+        
+        // Enable typing
+        startTypingPhase();
+    }
+
+    function updateStepIndicator(step, status) {
+        const indicator = document.getElementById(`step${step}-indicator`);
+        const stepText = indicator.nextElementSibling;
+        
+        indicator.className = 'relative w-8 h-8 flex items-center justify-center rounded-full';
+        
+        if (status === 'active') {
+            indicator.classList.add('bg-indigo-600');
+            indicator.innerHTML = `<div class="w-2.5 h-2.5 bg-white rounded-full animate-pulse"></div>`;
+            stepText.children[0].className = 'text-xs font-semibold tracking-wide uppercase text-indigo-600';
+        } else if (status === 'completed') {
+            indicator.classList.add('bg-green-600');
+            indicator.innerHTML = `<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+            </svg>`;
+            stepText.children[0].className = 'text-xs font-semibold tracking-wide uppercase text-green-600';
+        }
+    }
+
+    function startTypingPhase() {
+        isTypingPhase = true;
+        
+        // Enable typing area
+        const typingArea = document.getElementById('typingArea');
+        typingArea.disabled = false;
+        typingArea.placeholder = 'Start typing what you heard from the audio...';
+        typingArea.focus();
+        
+        // Enable submit button
+        document.getElementById('submitBtn').disabled = false;
+        
+        // Add event listener for first character typed
+        typingArea.addEventListener('input', handleFirstInput);
+    }
+    
+    function handleFirstInput() {
+        const typingArea = document.getElementById('typingArea');
+        
+        // Start timer only on first character typed
+        if (!typingStartTime && typingArea.value.length === 1) {
+            typingStartTime = new Date();
+            startTypingTimer();
+            
+            // Remove this event listener since we only want it to fire once
+            typingArea.removeEventListener('input', handleFirstInput);
+        }
+    }
+
+    function startTypingTimer() {
+        let timeRemaining = TYPING_TIME_LIMIT;
+        
+        typingTimer = setInterval(function() {
+            timeRemaining--;
+            
+            // Update timer display
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            document.getElementById('timer').textContent = 
+                String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+            
+            // Show warnings
+            if (timeRemaining <= 60 && timeRemaining > 0) {
+                document.getElementById('timeWarning').style.display = 'block';
+                document.getElementById('warningMessage').textContent = `Only ${timeRemaining} seconds remaining!`;
+            } else if (timeRemaining <= 0) {
+                // Time's up - auto submit
+                document.getElementById('timeWarning').style.display = 'block';
+                document.getElementById('warningMessage').textContent = 'Time is up! Auto-submitting your response...';
+                clearInterval(typingTimer);
+                
+                // Auto-submit immediately when time is up
+                setTimeout(function() {
+                    if (isTypingPhase) {  // Only submit if still in typing phase
+                        submitPractice();
+                    }
+                }, 2000);
+            }
+        }, 1000);
+    }
+
+    function submitPractice() {
+        const typedText = document.getElementById('typingArea').value;
+        const practiceEndTime = new Date();
+        const totalTime = Math.floor((practiceEndTime - practiceStartTime) / 1000);
+        
+        // Disable submit button to prevent double submission
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `
+            <svg class="w-5 h-5 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Submitting...
+        `;
+        
+        // Clear timer
+        if (typingTimer) {
+            clearInterval(typingTimer);
+        }
+        
+        // Show success message
+        showSuccessMessage();
+        
+        // Submit to server after a short delay
+        setTimeout(() => {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ url_for("submit_dictation_practice") }}';
+            
+            const fields = {
+                'audio_id': '{{ audio.id }}',
+                'transcription': typedText,
+                'time_taken': totalTime,
+                'practice_mode': 'new_dictation'
+            };
+            
+            Object.keys(fields).forEach(key => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = fields[key];
+                form.appendChild(input);
+            });
+            
+            document.body.appendChild(form);
+            form.submit();
+        }, 2000);
+    }
+
+    function onAudioError() {
+        console.error('Audio error occurred');
+        document.getElementById('audioStatus').textContent = 'Error loading audio. Please refresh the page.';
+        document.getElementById('playAudioBtn').innerHTML = `
+            <svg class="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Audio Error
+        `;
+    }
+
+    function onAudioLoaded() {
+        console.log('Audio loaded successfully');
+        document.getElementById('audioStatus').textContent = 'Audio ready to play';
+    }
+
+    function updateWordCount() {
+        const text = document.getElementById('typingArea').value;
+        const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+        // Could add word count display here if needed
+    }
+
+    function showSuccessMessage() {
+        // Create professional success notification
+        const notification = document.createElement('div');
+        notification.className = 'fixed inset-0 flex items-end justify-center px-4 py-6 pointer-events-none sm:p-6 sm:items-start sm:justify-end z-50';
+        notification.innerHTML = `
+            <div class="max-w-sm w-full bg-white shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden">
+                <div class="p-4">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-3 w-0 flex-1 pt-0.5">
+                            <p class="text-sm font-medium text-gray-900">Success!</p>
+                            <p class="mt-1 text-sm text-gray-500">Your response has been submitted successfully.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 3000);
+    }
+
+    // Text size control functions
+    let currentSizeIndex = 2; // Start at text-base-custom (14px)
+    const sizeClasses = [
+        'text-xs-custom',    // 10px
+        'text-sm-custom',    // 12px
+        'text-base-custom',  // 14px (default)
+        'text-lg-custom',    // 16px
+        'text-xl-custom',    // 18px
+        'text-2xl-custom',   // 20px
+        'text-3xl-custom',   // 22px
+        'text-4xl-custom'    // 24px
+    ];
+    
+    function changeTextSize(action) {
+        const textarea = document.getElementById('typingArea');
+        
+        // Remove all size classes
+        sizeClasses.forEach(cls => textarea.classList.remove(cls));
+        
+        switch(action) {
+            case 'larger':
+                currentSizeIndex = Math.min(currentSizeIndex + 1, sizeClasses.length - 1);
+                break;
+            case 'smaller':
+                currentSizeIndex = Math.max(currentSizeIndex - 1, 0);
+                break;
+            case 'reset':
+                currentSizeIndex = 2; // Reset to text-base-custom
+                break;
+        }
+        
+        // Apply the new size class
+        textarea.classList.add(sizeClasses[currentSizeIndex]);
+        
+        console.log('Applied text size class:', sizeClasses[currentSizeIndex]);
+    }
+</script>
+</body>
+</html>

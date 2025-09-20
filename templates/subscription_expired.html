@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Expired - Audio Dictation Practice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-red-50 to-orange-100 min-h-screen">
+    <div class="w-full px-2 py-12">
+        <div class="max-w-md mx-auto">
+            <div class="bg-white rounded-lg shadow-lg p-8">
+                <div class="text-center">
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-6">
+                        <svg class="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    
+                    <h1 class="text-2xl font-bold text-gray-800 mb-4">Subscription Expired</h1>
+                    
+                    <p class="text-gray-600 mb-6">
+                        Your subscription has expired and you no longer have access to practice sessions. Please contact your administrator to renew your subscription.
+                    </p>
+                    
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                        <h3 class="text-sm font-medium text-red-800 mb-2">To Renew Your Subscription:</h3>
+                        <ul class="text-xs text-red-700 text-left space-y-1">
+                            <li>• Contact your administrator</li>
+                            <li>• Provide your username for reference</li>
+                            <li>• Make payment as instructed</li>
+                            <li>• Wait for subscription activation</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <a href="{{ url_for('logout') }}" 
+                           class="block w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-200 text-center">
+                            Logout
+                        </a>
+                        
+                        <a href="{{ url_for('index') }}" 
+                           class="block w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-200 text-center">
+                            Back to Home
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

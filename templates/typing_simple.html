@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Typing Practice - Audio Dictation Practice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .typing-area { 
+            height: 500px; 
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+            font-size: 16px;
+            padding: 1.5rem !important;
+            overflow-y: auto;
+        }
+        .reference-text {
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+            font-size: 16px;
+            background-color: #f8fafc;
+            border: 2px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 1.5rem;
+            height: 500px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            max-width: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .timer-warning { animation: pulse 1s infinite; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="w-full px-2 py-3">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('typing_practice') }}" class="text-green-600 hover:text-green-800">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                    </a>
+                    <h1 class="text-xl font-bold text-gray-800">Simple Typing Practice</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">
+                        Welcome, <span class="font-medium">{{ session.username }}</span>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 ml-2">Student</span>
+                    </span>
+                    <a href="{{ url_for('logout') }}" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="w-full px-2 py-8">
+        <div class="max-w-full mx-auto px-4">
+            <!-- Practice Header -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">{{ passage.title }}</h2>
+                        <p class="text-gray-600">Type the text exactly as shown below</p>
+                    </div>
+                    <div class="text-right">
+                        <div id="timer" class="text-3xl font-bold text-green-600">Ready</div>
+                        <div class="text-sm text-gray-500">Start typing to begin</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div id="instructions" class="bg-green-50 border border-green-200 rounded p-4 mb-4">
+                <p class="text-green-800 text-sm">
+                    ⌨️ <strong>Instructions:</strong> Type the text exactly as shown in the reference panel below. 
+                    You have 15 minutes to complete this task. When finished or when time expires, your work will be automatically submitted.
+                </p>
+            </div>
+
+            <!-- Time Warning -->
+            <div id="timeWarning" class="bg-red-50 border border-red-200 rounded p-4 mb-4 timer-warning" style="display: none;">
+                <p class="text-red-800 text-sm font-medium">
+                    ⏰ <strong>Time Warning:</strong> <span id="warningMessage"></span>
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Reference Text Panel -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">📄 Reference Text</h3>
+                    <div class="reference-text">{{ passage.content }}</div>
+                </div>
+
+                <!-- Typing Area Panel -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">✍️ Your Typing</h3>
+                    <textarea 
+                        id="typingArea" 
+                        class="w-full border border-gray-300 rounded px-4 py-3 typing-area resize-none"
+                        placeholder="Start typing the reference text here..."
+                        spellcheck="false"
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="off"
+                        onpaste="return false;"
+                        ondrop="return false;"
+                        oncontextmenu="return false;"
+                    ></textarea>
+                    
+                    <!-- Submit Button -->
+                    <div class="mt-4 text-center">
+                        <button id="submitBtn" class="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 font-medium">
+                            Submit My Typing
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Passage data as JSON -->
+    <script type="application/json" id="passage-data">
+        {
+            "content": {{ passage.content|tojson }},
+            "wordCount": {{ passage.word_count or 0 }},
+            "id": {{ passage.id }}
+        }
+    </script>
+
+    <!-- JavaScript for Simple Typing Practice -->
+    <script>
+        // Load passage data from JSON
+        const passageData = JSON.parse(document.getElementById('passage-data').textContent);
+        
+        let practiceStartTime = null;
+        let typingTimer = null;
+        let isPracticeActive = false;
+        const TYPING_TIME_LIMIT = 15 * 60; // 15 minutes in seconds
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const typingArea = document.getElementById('typingArea');
+            
+            // Focus on typing area
+            typingArea.focus();
+            
+            // Set up event listeners
+            document.getElementById('submitBtn').addEventListener('click', submitPractice);
+            typingArea.addEventListener('input', handleFirstInput);
+        });
+
+        function handleFirstInput(event) {
+            const typingArea = document.getElementById('typingArea');
+            
+            // Start timer only on first character typed
+            if (!isPracticeActive && typingArea.value.length === 1) {
+                startPractice();
+            }
+            
+            // Continue with word count update
+            updateWordCount();
+        }
+
+        function startPractice() {
+            practiceStartTime = new Date();
+            isPracticeActive = true;
+            
+            // Start 15-minute countdown timer
+            startTypingTimer();
+            
+            // Update instructions
+            document.getElementById('instructions').innerHTML = `
+                <p class="text-green-800 text-sm">
+                    ✅ <strong>Timer Started!</strong> You have 15 minutes to complete the typing practice.
+                </p>
+            `;
+        }
+
+        function startTypingTimer() {
+            let timeRemaining = TYPING_TIME_LIMIT;
+            
+            typingTimer = setInterval(function() {
+                timeRemaining--;
+                
+                // Update timer display
+                const minutes = Math.floor(timeRemaining / 60);
+                const seconds = timeRemaining % 60;
+                document.getElementById('timer').textContent = 
+                    String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+                
+                // Show warnings
+                if (timeRemaining <= 60 && timeRemaining > 0) {
+                    document.getElementById('timeWarning').style.display = 'block';
+                    document.getElementById('warningMessage').textContent = timeRemaining + ' seconds remaining!';
+                } else if (timeRemaining <= 0) {
+                    // Time's up - auto submit
+                    document.getElementById('timeWarning').style.display = 'block';
+                    document.getElementById('warningMessage').textContent = 'Time is up! Auto-submitting your typing...';
+                    clearInterval(typingTimer);
+                    
+                    // Auto-submit immediately when time is up
+                    setTimeout(function() {
+                        if (isPracticeActive) {  // Only submit if still in practice mode
+                            submitPractice();
+                        }
+                    }, 2000);
+                }
+            }, 1000);
+        }
+
+        function submitPractice() {
+            const typedText = document.getElementById('typingArea').value;
+            const practiceEndTime = new Date();
+            const totalTime = Math.floor((practiceEndTime - practiceStartTime) / 1000);
+            
+            // Calculate basic stats
+            const wordsTyped = typedText.trim() ? typedText.trim().split(/\s+/).length : 0;
+            const wpm = totalTime > 0 ? Math.round((wordsTyped / (totalTime / 60))) : 0;
+            
+            // Disable submit button to prevent double submission
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('submitBtn').textContent = 'Submitting...';
+            
+            // Clear timer
+            if (typingTimer) {
+                clearInterval(typingTimer);
+            }
+            
+            // Show success message
+            showSuccessMessage();
+            
+            // Submit to server after a short delay to show success message
+            setTimeout(() => {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ url_for("submit_typing_practice") }}';
+                
+                const fields = {
+                    'passage_id': passageData.id,
+                    'typed_text': typedText,
+                    'time_taken': totalTime,
+                    'wpm': wpm,
+                    'accuracy': 100, // Will be calculated on server
+                    'errors': 0, // Will be calculated on server
+                    'practice_mode': 'simple'
+                };
+                
+                Object.keys(fields).forEach(key => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = fields[key];
+                    form.appendChild(input);
+                });
+                
+                document.body.appendChild(form);
+                form.submit();
+            }, 1500);
+        }
+
+        function updateWordCount() {
+            const text = document.getElementById('typingArea').value;
+            const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+            // Could add word count display here if needed
+        }
+
+        function showSuccessMessage() {
+            // Create success popup
+            const successDiv = document.createElement('div');
+            successDiv.id = 'successPopup';
+            successDiv.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: linear-gradient(135deg, #10B981, #059669);
+                color: white;
+                padding: 30px 40px;
+                border-radius: 15px;
+                box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+                z-index: 10000;
+                text-align: center;
+                font-family: Arial, sans-serif;
+                min-width: 300px;
+                animation: popupSlideIn 0.5s ease-out;
+            `;
+            
+            successDiv.innerHTML = `
+                <div style="font-size: 48px; margin-bottom: 15px;">✅</div>
+                <h3 style="margin: 0 0 10px 0; font-size: 24px; font-weight: bold;">Success!</h3>
+                <p style="margin: 0; font-size: 16px; opacity: 0.9;">
+                    Your typing practice has been submitted successfully!<br>
+                    Returning to practice selection...
+                </p>
+            `;
+            
+            // Add CSS animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes popupSlideIn {
+                    0% {
+                        opacity: 0;
+                        transform: translate(-50%, -50%) scale(0.7);
+                    }
+                    100% {
+                        opacity: 1;
+                        transform: translate(-50%, -50%) scale(1);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Create backdrop
+            const backdrop = document.createElement('div');
+            backdrop.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 9999;
+            `;
+            
+            document.body.appendChild(backdrop);
+            document.body.appendChild(successDiv);
+        }
+
+        // Remove the beforeunload warning as requested - no more "Changes may not be saved" message
+        // Users will see success popup instead
+    </script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Flask Audio App{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Navigation Bar -->
+    {% if session.user_id %}
+    <nav class="bg-white shadow-sm border-b">
+        <div class="w-full px-2 py-3">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <h1 class="text-xl font-bold text-gray-800">Audio Dictation App</h1>
+                    {% if session.user_role == 'admin' %}
+                        <a href="{{ url_for('admin_upload') }}" class="text-blue-600 hover:text-blue-800 font-medium">Upload Audio</a>
+                    {% endif %}
+                    <a href="{{ url_for('dictation_practice') }}" class="text-blue-600 hover:text-blue-800 font-medium">Dictation Practice</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">
+                        Welcome, <span class="font-medium">{{ session.user_id }}</span>
+                        {% if session.user_role == 'admin' %}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ml-2">Admin</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 ml-2">Client</span>
+                        {% endif %}
+                    </span>
+                    <a href="{{ url_for('logout') }}" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <div class="w-full px-2 py-4">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

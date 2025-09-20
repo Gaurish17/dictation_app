@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Upload - Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Drag and drop area */
+        .drag-area {
+            border: 2px dashed #cbd5e0;
+            transition: all 0.3s ease;
+            background: rgba(248, 250, 252, 0.8);
+        }
+        
+        .drag-area.dragover {
+            border-color: #4299e1;
+            background-color: rgba(66, 153, 225, 0.1);
+            transform: scale(1.02);
+        }
+
+        /* Upload cards */
+        .upload-card {
+            transition: all 0.3s ease;
+        }
+        
+        .upload-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-lg border-b">
+        <div class="w-full px-2 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('admin_dashboard') }}" class="text-gray-700 hover:text-blue-600 transition-colors duration-300 font-medium">
+                        <svg class="h-6 w-6 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        Back to Dashboard
+                    </a>
+                    <h1 class="text-2xl font-bold text-gray-800">📤 Bulk Upload Manager</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">
+                        Welcome, <span class="font-medium text-gray-800">{{ session.username }}</span>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ml-2 border border-blue-200">{{ session.role.title() }}</span>
+                    </span>
+                    <a href="{{ url_for('logout') }}" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-all duration-300 text-sm shadow-lg">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="w-full px-2 py-8">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-8 space-y-4">
+                    {% for category, message in messages %}
+                        <div class="{% if category == 'error' %}bg-red-50 border-l-4 border-red-400 text-red-800{% else %}bg-green-50 border-l-4 border-green-400 text-green-800{% endif %} px-6 py-4 rounded-lg mb-6 shadow-lg">
+                            <div class="flex items-center">
+                                {% if category == 'error' %}
+                                    <svg class="w-5 h-5 mr-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                {% else %}
+                                    <svg class="w-5 h-5 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                {% endif %}
+                                <span class="font-medium">{{ message }}</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Upload Type Selector -->
+        <div class="bg-white rounded-lg shadow-lg border border-gray-200 p-8 mb-8">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-blue-600 rounded-lg mx-auto mb-4 flex items-center justify-center shadow-lg">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">Choose Upload Type</h2>
+                <p class="text-gray-600">Select what type of content you want to upload in bulk</p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Audio Bulk Upload Card -->
+                <div class="upload-card bg-white rounded-lg shadow-lg border border-gray-200 p-6 cursor-pointer upload-type-card hover:border-blue-300 transition-all" data-type="audio">
+                    <div class="text-center">
+                        <div class="w-16 h-16 bg-blue-600 rounded-lg mx-auto mb-4 flex items-center justify-center shadow-lg">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">🎵 Bulk Audio Upload</h3>
+                        <p class="text-gray-600">Upload multiple MP3 audio files at once for dictation practice</p>
+                        <div class="mt-4">
+                            <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">MP3 Files</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Passage Bulk Upload Card -->
+                <div class="upload-card bg-white rounded-lg shadow-lg border border-gray-200 p-6 cursor-pointer upload-type-card hover:border-green-300 transition-all" data-type="passages">
+                    <div class="text-center">
+                        <div class="w-16 h-16 bg-green-600 rounded-lg mx-auto mb-4 flex items-center justify-center shadow-lg">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">📝 Bulk Passage Upload</h3>
+                        <p class="text-gray-600">Add multiple typing passages from text content</p>
+                        <div class="mt-4">
+                            <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-800 border border-green-200">Text Content</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audio Upload Form -->
+        <div id="audioUploadForm" class="bg-white rounded-lg shadow-lg border border-gray-200 p-8 mb-8" style="display: none;">
+            <div class="flex items-center mb-6">
+                <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg mr-4">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold text-gray-800">🎵 Bulk Audio Upload</h3>
+                    <p class="text-gray-600">Upload multiple MP3 files for dictation practice</p>
+                </div>
+            </div>
+            
+            <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="upload_type" value="audio">
+                
+                <!-- Drag and Drop Area -->
+                <div id="audioDropArea" class="drag-area rounded-lg p-12 text-center mb-6 border-2 border-dashed border-gray-300">
+                    <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    <h4 class="text-xl font-bold text-gray-800 mb-2">Drop MP3 files here</h4>
+                    <p class="text-gray-600 mb-4">or click to select multiple files</p>
+                    <input type="file" id="audioFiles" name="audio_files" multiple accept=".mp3" class="hidden">
+                    <button type="button" onclick="document.getElementById('audioFiles').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-lg">
+                        <svg class="inline-block w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        Select Audio Files
+                    </button>
+                </div>
+
+                <!-- Selected Files List -->
+                <div id="audioFilesList" class="mb-6" style="display: none;">
+                    <h4 class="text-lg font-bold text-gray-800 mb-4">📁 Selected Files:</h4>
+                    <div id="audioFilesContainer" class="space-y-3"></div>
+                </div>
+
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="hideUploadForms()" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-all duration-300">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-lg">
+                        <svg class="inline-block w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        Upload Audio Files
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Passage Upload Form -->
+        <div id="passageUploadForm" class="bg-white rounded-lg shadow-lg border border-gray-200 p-8" style="display: none;">
+            <div class="flex items-center mb-6">
+                <div class="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center shadow-lg mr-4">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold text-gray-800">📝 Bulk Passage Upload</h3>
+                    <p class="text-gray-600">Add multiple typing passages from text content</p>
+                </div>
+            </div>
+            
+            <form method="POST">
+                <input type="hidden" name="upload_type" value="passages">
+                
+                <div class="mb-6">
+                    <label class="block text-gray-800 font-medium mb-3">📄 Paste Passages (separate each passage with a double line break)</label>
+                    <div class="bg-blue-50 rounded-lg p-4 mb-4 border border-blue-200">
+                        <p class="text-gray-600 text-sm font-semibold mb-2">📋 Format Example:</p>
+                        <pre class="text-gray-600 text-xs bg-white p-3 rounded border border-gray-200">Title of First Passage
+Content of the first passage goes here. This can be multiple lines.
+
+Title of Second Passage
+Content of the second passage goes here.</pre>
+                    </div>
+                    <textarea name="passages_bulk_text" rows="15" 
+                             class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300"
+                             placeholder="Enter passages here... Each passage should have a title on the first line, followed by the content. Separate multiple passages with double line breaks."></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="hideUploadForms()" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-all duration-300">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-lg">
+                        <svg class="inline-block w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Upload Passages
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Instructions -->
+        <div class="bg-white rounded-lg shadow-lg border border-gray-200 p-6 mt-8">
+            <div class="flex items-center mb-4">
+                <div class="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center shadow-lg mr-3">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800">📋 Upload Instructions</h3>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <h4 class="font-semibold text-gray-800 mb-3 flex items-center">
+                        <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                        </svg>
+                        Audio Files:
+                    </h4>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                        <li>Only MP3 format supported</li>
+                        <li>File names will be used as titles (without .mp3)</li>
+                        <li>Drag and drop or select multiple files</li>
+                        <li>Maximum file size: 50MB per file</li>
+                    </ul>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <h4 class="font-semibold text-gray-800 mb-3 flex items-center">
+                        <svg class="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Text Passages:
+                    </h4>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                        <li>First line of each passage becomes the title</li>
+                        <li>Separate passages with double line breaks</li>
+                        <li>Word count calculated automatically</li>
+                        <li>Rich text formatting preserved</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Upload type selection
+        document.querySelectorAll('.upload-type-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const type = this.dataset.type;
+                hideUploadForms();
+                
+                if (type === 'audio') {
+                    document.getElementById('audioUploadForm').style.display = 'block';
+                } else if (type === 'passages') {
+                    document.getElementById('passageUploadForm').style.display = 'block';
+                }
+                
+                // Scroll to form
+                setTimeout(() => {
+                    const form = document.querySelector(`#${type}UploadForm`);
+                    if (form) {
+                        form.scrollIntoView({ behavior: 'smooth' });
+                    }
+                }, 100);
+            });
+        });
+
+        function hideUploadForms() {
+            document.getElementById('audioUploadForm').style.display = 'none';
+            document.getElementById('passageUploadForm').style.display = 'none';
+        }
+
+        // Audio file handling
+        const audioDropArea = document.getElementById('audioDropArea');
+        const audioFiles = document.getElementById('audioFiles');
+        const audioFilesList = document.getElementById('audioFilesList');
+        const audioFilesContainer = document.getElementById('audioFilesContainer');
+
+        // Drag and drop functionality
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            audioDropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            audioDropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            audioDropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            audioDropArea.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            audioDropArea.classList.remove('dragover');
+        }
+
+        audioDropArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            audioFiles.files = files;
+            displayFiles(files);
+        }
+
+        audioFiles.addEventListener('change', function() {
+            displayFiles(this.files);
+        });
+
+        function displayFiles(files) {
+            audioFilesContainer.innerHTML = '';
+            
+            if (files.length > 0) {
+                audioFilesList.style.display = 'block';
+                
+                Array.from(files).forEach((file, index) => {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = 'bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between shadow-lg';
+                    
+                    fileDiv.innerHTML = `
+                        <div class="flex items-center space-x-4">
+                            <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                            </svg>
+                            <div>
+                                <div class="text-gray-800 font-medium">${file.name}</div>
+                                <div class="text-gray-600 text-sm">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                            </div>
+                        </div>
+                        <div class="text-green-500">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                    `;
+                    
+                    audioFilesContainer.appendChild(fileDiv);
+                });
+            } else {
+                audioFilesList.style.display = 'none';
+            }
+        }
+
+        // Click to select files
+        audioDropArea.addEventListener('click', function() {
+            audioFiles.click();
+        });
+    </script>
+</body>
+</html>
