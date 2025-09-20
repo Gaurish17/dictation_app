@@ -2026,6 +2026,13 @@ def init_db():
         
         db.session.commit()
 
-if __name__ == '__main__':
+# Initialize database automatically when app starts
+try:
     init_db()
+    print("✅ Database initialized successfully")
+except Exception as e:
+    print(f"❌ Database initialization error: {e}")
+    # Continue anyway in case tables already exist
+
+if __name__ == '__main__':
     app.run(debug=True)
