@@ -127,13 +127,27 @@
             <!-- Audio Player Section -->
             <div class="mb-8">
                 <div class="audio-controls rounded-xl p-6 shadow-lg border border-gray-200/50">
-                    <div class="flex items-center mb-4">
-                        <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-lg mr-3">
-                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
-                            </svg>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-lg mr-3">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-xl font-bold text-contrast">🎧 Audio Player</h2>
                         </div>
-                        <h2 class="text-xl font-bold text-contrast">🎧 Audio Player</h2>
+                        
+                        <!-- Skip Audio Button -->
+                        <button 
+                            id="skipAudioBtn"
+                            onclick="skipToTranscription()"
+                            class="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-lg font-medium text-sm"
+                        >
+                            <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Skip Audio
+                        </button>
                     </div>
                     
                     <audio
@@ -147,8 +161,44 @@
                         Your browser does not support the audio element.
                     </audio>
                     
+                    <!-- Volume Controls -->
+                    <div class="mt-4 flex items-center justify-center space-x-4">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-contrast" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142M6.343 6.343a9 9 0 000 12.728m2.829-9.9a5 5 0 000 7.072M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            <span class="text-xs text-muted font-medium">Volume:</span>
+                        </div>
+                        
+                        <button 
+                            id="volumeDownBtn"
+                            onclick="adjustVolume(-0.1)"
+                            class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded transition-all duration-200 text-sm font-medium"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                            </svg>
+                        </button>
+                        
+                        <div class="bg-gray-200 rounded-full h-2 w-24 mx-2">
+                            <div id="volumeBar" class="bg-gradient-to-r from-green-500 to-blue-600 h-2 rounded-full transition-all duration-200" style="width: 100%"></div>
+                        </div>
+                        
+                        <button 
+                            id="volumeUpBtn"
+                            onclick="adjustVolume(0.1)"
+                            class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded transition-all duration-200 text-sm font-medium"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                        </button>
+                        
+                        <span id="volumeDisplay" class="text-xs text-muted font-mono">100%</span>
+                    </div>
+                    
                     <div class="mt-4 text-center">
-                        <p class="text-xs text-muted">💡 Tip: You can replay the audio as many times as needed</p>
+                        <p class="text-xs text-muted">💡 Tip: Adjust volume with +/- buttons or replay audio as many times as needed</p>
                     </div>
                 </div>
             </div>
@@ -377,7 +427,68 @@
         audio.play().catch(function(error) {
             console.log('Autoplay prevented by browser policy:', error);
         });
+        
+        // Initialize volume display
+        updateVolumeDisplay();
     });
+
+    // Volume control functions
+    function adjustVolume(change) {
+        const audio = document.getElementById('audioPlayer');
+        const newVolume = Math.max(0, Math.min(1, audio.volume + change));
+        audio.volume = newVolume;
+        updateVolumeDisplay();
+    }
+
+    function updateVolumeDisplay() {
+        const audio = document.getElementById('audioPlayer');
+        const volumeBar = document.getElementById('volumeBar');
+        const volumeDisplay = document.getElementById('volumeDisplay');
+        
+        const volumePercent = Math.round(audio.volume * 100);
+        volumeBar.style.width = volumePercent + '%';
+        volumeDisplay.textContent = volumePercent + '%';
+        
+        // Update volume bar color based on level
+        if (volumePercent > 70) {
+            volumeBar.className = 'bg-gradient-to-r from-green-500 to-blue-600 h-2 rounded-full transition-all duration-200';
+        } else if (volumePercent > 30) {
+            volumeBar.className = 'bg-gradient-to-r from-yellow-500 to-orange-500 h-2 rounded-full transition-all duration-200';
+        } else {
+            volumeBar.className = 'bg-gradient-to-r from-red-500 to-red-600 h-2 rounded-full transition-all duration-200';
+        }
+    }
+
+    // Skip audio function
+    function skipToTranscription() {
+        // Pause audio
+        const audio = document.getElementById('audioPlayer');
+        audio.pause();
+        
+        // Focus on transcription textarea
+        const transcriptionArea = document.getElementById('transcription');
+        transcriptionArea.focus();
+        
+        // Scroll to transcription area smoothly
+        transcriptionArea.scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'center'
+        });
+        
+        // Show a brief message
+        const skipBtn = document.getElementById('skipAudioBtn');
+        const originalText = skipBtn.innerHTML;
+        skipBtn.innerHTML = '<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Skipped';
+        skipBtn.disabled = true;
+        skipBtn.className = 'bg-green-600 text-white px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed';
+        
+        // Reset button after 2 seconds
+        setTimeout(() => {
+            skipBtn.innerHTML = originalText;
+            skipBtn.disabled = false;
+            skipBtn.className = 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-lg font-medium text-sm';
+        }, 2000);
+    }
     </script>
     {% else %}
     <script>

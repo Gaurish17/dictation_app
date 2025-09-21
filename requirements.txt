@@ -4,6 +4,7 @@ Flask-SQLAlchemy==3.0.5
 python-dateutil==2.8.2
 openpyxl==3.1.2
 reportlab==4.0.4
-psycopg2-binary==2.9.7
 gunicorn==21.2.0
 python-dotenv==1.0.0
+python-docx==0.8.11
+odfpy==1.4.1

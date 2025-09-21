@@ -256,62 +256,47 @@
             </div>
         </div>
 
-        <!-- Text Comparison - EXPANDED VERSION -->
+        <!-- Result Analysis - Single View (No Side-by-Side) -->
         {% if results and results.reference_text and results.user_text and results.detailed_comparison %}
         <div class="bg-white shadow-2xl rounded-2xl mb-12 border-2 border-gray-300">
             <div class="px-10 py-8 border-b-2 border-gray-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50">
-                <h2 class="text-3xl font-bold text-gray-900 text-center mb-3">📝 Word-by-Word Comparison</h2>
-                <p class="text-lg text-gray-700 text-center">Compare your response with the reference text</p>
+                <h2 class="text-3xl font-bold text-gray-900 text-center mb-3">📝 Your Transcription Results</h2>
+                <p class="text-lg text-gray-700 text-center">See how you performed word by word</p>
             </div>
             <div class="px-10 py-10">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-12">
-                    <!-- Reference Text -->
-                    <div class="space-y-6">
-                        <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center justify-center bg-blue-50 py-4 px-6 rounded-xl border-2 border-blue-200">
-                            <svg class="w-8 h-8 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            📄 Reference Text
-                        </h3>
-                        <div class="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-300 rounded-xl p-4 h-96 overflow-y-auto shadow-lg">
-                            <div class="text-sm leading-relaxed">
-                                {% for i in range(results.detailed_comparison.reference_words|length) %}
-                                    {% set ref_word = results.detailed_comparison.reference_words[i] %}
-                                    {% set comparison = results.detailed_comparison.comparison_result[i] %}
-                                    {% if ref_word %}
-                                        <span class="inline-block mr-2 mb-2 px-2 py-1 rounded-lg font-medium text-sm
-                                            {% if comparison == 'correct' %}bg-green-100 text-green-800 border border-green-300
-                                            {% elif comparison == 'incorrect' %}bg-red-100 text-red-800 border border-red-300
-                                            {% elif comparison == 'missing' %}bg-yellow-100 text-yellow-800 border border-yellow-300
-                                            {% endif %}">{{ ref_word }}</span>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Your Text -->
-                    <div class="space-y-6">
-                        <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center justify-center bg-indigo-50 py-4 px-6 rounded-xl border-2 border-indigo-200">
-                            <svg class="w-8 h-8 mr-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-                            </svg>
-                            ✏️ Your Response
-                        </h3>
-                        <div class="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-300 rounded-xl p-4 h-96 overflow-y-auto shadow-lg">
-                            <div class="text-sm leading-relaxed">
-                                {% for i in range(results.detailed_comparison.typed_words|length) %}
-                                    {% set typed_word = results.detailed_comparison.typed_words[i] %}
-                                    {% set comparison = results.detailed_comparison.comparison_result[i] %}
-                                    {% if typed_word %}
-                                        <span class="inline-block mr-2 mb-2 px-2 py-1 rounded-lg font-medium text-sm
-                                            {% if comparison == 'correct' %}bg-green-100 text-green-800 border border-green-300
-                                            {% elif comparison == 'incorrect' %}bg-red-100 text-red-800 border border-red-300
-                                            {% elif comparison == 'extra' %}bg-orange-100 text-orange-800 border border-orange-300
-                                            {% endif %}">{{ typed_word }}</span>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
+                <!-- Single Result View -->
+                <div class="space-y-6">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center justify-center bg-indigo-50 py-4 px-6 rounded-xl border-2 border-indigo-200">
+                        <svg class="w-8 h-8 mr-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                        </svg>
+                        ✏️ Your Transcription Analysis
+                    </h3>
+                    <div class="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-300 rounded-xl p-6 shadow-lg">
+                        <div class="text-lg leading-relaxed">
+                            {% for i in range(results.detailed_comparison.reference_words|length) %}
+                                {% set ref_word = results.detailed_comparison.reference_words[i] %}
+                                {% set typed_word = results.detailed_comparison.typed_words[i] if i < results.detailed_comparison.typed_words|length else '' %}
+                                {% set comparison = results.detailed_comparison.comparison_result[i] %}
+                                
+                                {% if comparison == 'correct' %}
+                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: black; background-color: #f8f9fa; border: 1px solid #e9ecef;">{{ typed_word }}</span>
+                                {% elif comparison == 'incorrect' %}
+                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: red; background-color: #fff5f5; border: 1px solid #fed7d7;">{{ typed_word }}</span>
+                                {% elif comparison == 'missing' %}
+                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: green; background-color: #f0fff4; border: 1px solid #c6f6d5;">{{ ref_word }} (missed)</span>
+                                {% elif comparison == 'extra' and typed_word %}
+                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: orange; background-color: #fffaf0; border: 1px solid #fed7aa;">{{ typed_word }} (extra)</span>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <!-- Handle any extra words at the end -->
+                            {% for i in range(results.detailed_comparison.reference_words|length, results.detailed_comparison.typed_words|length) %}
+                                {% set typed_word = results.detailed_comparison.typed_words[i] %}
+                                {% if typed_word %}
+                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: orange; background-color: #fffaf0; border: 1px solid #fed7aa;">{{ typed_word }} (extra)</span>
+                                {% endif %}
+                            {% endfor %}
                         </div>
                     </div>
                 </div>
@@ -321,20 +306,20 @@
                     <h5 class="text-sm font-semibold text-gray-800 mb-4">Color Legend:</h5>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="flex items-center">
-                            <span class="w-6 h-6 bg-green-100 border-2 border-green-300 rounded-lg mr-3 shadow-sm"></span>
-                            <span class="text-gray-700 font-medium">Correct</span>
+                            <span class="w-6 h-6 rounded-lg mr-3 shadow-sm border" style="background-color: #f8f9fa; border-color: #e9ecef;"></span>
+                            <span class="text-gray-700 font-medium">Correct (Black)</span>
                         </div>
                         <div class="flex items-center">
-                            <span class="w-6 h-6 bg-red-100 border-2 border-red-300 rounded-lg mr-3 shadow-sm"></span>
-                            <span class="text-gray-700 font-medium">Incorrect</span>
+                            <span class="w-6 h-6 rounded-lg mr-3 shadow-sm border" style="background-color: #fff5f5; border-color: #fed7d7;"></span>
+                            <span class="text-gray-700 font-medium">Wrong (Red)</span>
                         </div>
                         <div class="flex items-center">
-                            <span class="w-6 h-6 bg-yellow-100 border-2 border-yellow-300 rounded-lg mr-3 shadow-sm"></span>
-                            <span class="text-gray-700 font-medium">Missing</span>
+                            <span class="w-6 h-6 rounded-lg mr-3 shadow-sm border" style="background-color: #f0fff4; border-color: #c6f6d5;"></span>
+                            <span class="text-gray-700 font-medium">Missed (Green)</span>
                         </div>
                         <div class="flex items-center">
-                            <span class="w-6 h-6 bg-orange-100 border-2 border-orange-300 rounded-lg mr-3 shadow-sm"></span>
-                            <span class="text-gray-700 font-medium">Extra</span>
+                            <span class="w-6 h-6 rounded-lg mr-3 shadow-sm border" style="background-color: #fffaf0; border-color: #fed7aa;"></span>
+                            <span class="text-gray-700 font-medium">Extra (Orange)</span>
                         </div>
                     </div>
                 </div>

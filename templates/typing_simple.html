@@ -10,14 +10,14 @@
             height: 500px; 
             font-family: 'Courier New', monospace;
             line-height: 1.6;
-            font-size: 16px;
+            font-size: 18px;
             padding: 1.5rem !important;
             overflow-y: auto;
         }
         .reference-text {
             font-family: 'Courier New', monospace;
             line-height: 1.6;
-            font-size: 16px;
+            font-size: 18px;
             background-color: #f8fafc;
             border: 2px solid #cbd5e1;
             border-radius: 12px;
@@ -78,7 +78,8 @@
             <div id="instructions" class="bg-green-50 border border-green-200 rounded p-4 mb-4">
                 <p class="text-green-800 text-sm">
                     ⌨️ <strong>Instructions:</strong> Type the text exactly as shown in the reference panel below. 
-                    You have 15 minutes to complete this task. When finished or when time expires, your work will be automatically submitted.
+                    You have 10 minutes to complete this task. When finished or when time expires, your work will be automatically submitted.
+                    <br><strong>Note:</strong> Backspace, Delete, and Shift keys are disabled to prevent editing.
                 </p>
             </div>
 
@@ -140,7 +141,7 @@
         let practiceStartTime = null;
         let typingTimer = null;
         let isPracticeActive = false;
-        const TYPING_TIME_LIMIT = 15 * 60; // 15 minutes in seconds
+        const TYPING_TIME_LIMIT = 10 * 60; // 10 minutes in seconds
 
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -152,6 +153,9 @@
             // Set up event listeners
             document.getElementById('submitBtn').addEventListener('click', submitPractice);
             typingArea.addEventListener('input', handleFirstInput);
+            
+            // Add key restrictions - disable Backspace, Delete, and Shift keys
+            typingArea.addEventListener('keydown', handleKeyRestrictions);
         });
 
         function handleFirstInput(event) {
@@ -176,7 +180,7 @@
             // Update instructions
             document.getElementById('instructions').innerHTML = `
                 <p class="text-green-800 text-sm">
-                    ✅ <strong>Timer Started!</strong> You have 15 minutes to complete the typing practice.
+                    ✅ <strong>Timer Started!</strong> You have 10 minutes to complete the typing practice.
                 </p>
             `;
         }
@@ -267,6 +271,88 @@
             const text = document.getElementById('typingArea').value;
             const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
             // Could add word count display here if needed
+        }
+
+        // Handle key restrictions - disable Backspace, Delete, and Shift keys
+        function handleKeyRestrictions(event) {
+            const restrictedKeys = [
+                'Backspace',    // Key code 8
+                'Delete',       // Key code 46
+                'Shift'         // Key code 16
+            ];
+            
+            // Check if the pressed key is in the restricted list
+            if (restrictedKeys.includes(event.key)) {
+                event.preventDefault();
+                
+                // Show visual feedback that the key is disabled
+                showKeyDisabledMessage(event.key);
+                return false;
+            }
+            
+            // Allow all other keys
+            return true;
+        }
+
+        // Show a brief message when a disabled key is pressed
+        function showKeyDisabledMessage(keyName) {
+            // Remove any existing message
+            const existingMessage = document.getElementById('keyDisabledMessage');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            // Create new message
+            const message = document.createElement('div');
+            message.id = 'keyDisabledMessage';
+            message.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #ef4444;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 600;
+                box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+                z-index: 10000;
+                animation: slideInFromRight 0.3s ease-out;
+            `;
+            
+            message.innerHTML = `
+                <div style="display: flex; align-items: center;">
+                    <svg style="width: 16px; height: 16px; margin-right: 8px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    ${keyName} key is disabled
+                </div>
+            `;
+            
+            // Add animation style
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideInFromRight {
+                    0% {
+                        opacity: 0;
+                        transform: translateX(100%);
+                    }
+                    100% {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(message);
+            
+            // Remove message after 2 seconds
+            setTimeout(() => {
+                if (message && message.parentNode) {
+                    message.remove();
+                }
+            }, 2000);
         }
 
         function showSuccessMessage() {

@@ -147,13 +147,52 @@
                 <div class="bg-gray-50 rounded-lg p-6">
                     <div class="text-center">
                         <div id="audioStatus" class="text-lg font-medium text-gray-700 mb-4">Ready to play audio</div>
-                        <button id="playAudioBtn" 
-                                class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-6 4h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                            </svg>
-                            Play Audio
-                        </button>
+                        
+                        <!-- Audio Controls -->
+                        <div class="flex items-center justify-center space-x-4 mb-4">
+                            <button id="playAudioBtn" 
+                                    class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-6 4h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                </svg>
+                                Play Audio
+                            </button>
+                            
+                            <button id="skipAudioBtn" 
+                                    class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3-3 3m0 0l-3-3m3 3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Skip to Typing
+                            </button>
+                        </div>
+                        
+                        <!-- Volume Controls -->
+                        <div class="flex items-center justify-center space-x-3 mb-4">
+                            <span class="text-sm text-gray-600">Volume:</span>
+                            <button id="volumeDownBtn" 
+                                    class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142M11 5L6 9H2v6h4l5 4V5z"></path>
+                                </svg>
+                                -
+                            </button>
+                            
+                            <div class="flex items-center space-x-2">
+                                <input type="range" id="volumeSlider" min="0" max="100" value="50" 
+                                       class="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider">
+                                <span id="volumeDisplay" class="text-sm text-gray-600 w-8">50%</span>
+                            </div>
+                            
+                            <button id="volumeUpBtn" 
+                                    class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142M11 5L6 9H2v6h4l5 4V5z"></path>
+                                </svg>
+                                +
+                            </button>
+                        </div>
+                        
                         <audio id="audioPlayer" preload="metadata" style="display: none;">
                             <source src="{{ url_for('uploaded_file', filename=audio.filename) }}" type="audio/mpeg">
                             Your browser does not support the audio element.
@@ -193,7 +232,7 @@
                         <div class="ml-3">
                             <h3 class="text-sm font-medium text-green-800">Ready to Type</h3>
                             <div class="mt-2 text-sm text-green-700">
-                                <p>Type exactly what you heard. You have 15 minutes to complete this task. Focus on accuracy over speed.</p>
+                                <p>Type exactly what you heard. You have 30 minutes to complete this task. Focus on accuracy over speed.</p>
                             </div>
                         </div>
                     </div>
@@ -277,15 +316,24 @@
     let isAudioPlaying = false;
     let isAudioFinished = false;
     let isTypingPhase = false;
-    const TYPING_TIME_LIMIT = 15 * 60; // 15 minutes in seconds
+    const TYPING_TIME_LIMIT = 30 * 60; // 30 minutes in seconds
 
     document.addEventListener('DOMContentLoaded', function() {
         audioPlayer = document.getElementById('audioPlayer');
         
         // Set up event listeners
         document.getElementById('playAudioBtn').addEventListener('click', startAudio);
+        document.getElementById('skipAudioBtn').addEventListener('click', skipToTyping);
         document.getElementById('submitBtn').addEventListener('click', submitPractice);
         document.getElementById('typingArea').addEventListener('input', updateWordCount);
+        
+        // Volume control event listeners
+        document.getElementById('volumeDownBtn').addEventListener('click', decreaseVolume);
+        document.getElementById('volumeUpBtn').addEventListener('click', increaseVolume);
+        document.getElementById('volumeSlider').addEventListener('input', updateVolume);
+        
+        // Initialize volume
+        updateVolume();
         
         // Audio player events
         audioPlayer.addEventListener('timeupdate', updateAudioProgress);
@@ -542,6 +590,77 @@
         setTimeout(() => {
             document.body.removeChild(notification);
         }, 3000);
+    }
+
+    // Volume control functions
+    function updateVolume() {
+        const slider = document.getElementById('volumeSlider');
+        const display = document.getElementById('volumeDisplay');
+        const volume = slider.value / 100;
+        
+        audioPlayer.volume = volume;
+        display.textContent = Math.round(slider.value) + '%';
+        
+        console.log('Volume updated to:', volume);
+    }
+    
+    function increaseVolume() {
+        const slider = document.getElementById('volumeSlider');
+        const currentValue = parseInt(slider.value);
+        const newValue = Math.min(currentValue + 10, 100);
+        
+        slider.value = newValue;
+        updateVolume();
+    }
+    
+    function decreaseVolume() {
+        const slider = document.getElementById('volumeSlider');
+        const currentValue = parseInt(slider.value);
+        const newValue = Math.max(currentValue - 10, 0);
+        
+        slider.value = newValue;
+        updateVolume();
+    }
+    
+    function skipToTyping() {
+        console.log('Skipping audio to typing phase');
+        
+        if (!practiceStartTime) {
+            practiceStartTime = new Date();
+        }
+        
+        // Stop audio if playing
+        if (isAudioPlaying) {
+            audioPlayer.pause();
+            isAudioPlaying = false;
+        }
+        
+        // Mark audio as finished even if skipped
+        isAudioFinished = true;
+        
+        // Update step indicators
+        updateStepIndicator(1, 'completed');
+        updateStepIndicator(2, 'active');
+        
+        // Update status
+        document.getElementById('audioStatus').textContent = 'Audio skipped! Ready to type.';
+        const playBtn = document.getElementById('playAudioBtn');
+        playBtn.innerHTML = `
+            <svg class="w-5 h-5 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3-3 3m0 0l-3-3m3 3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Audio Skipped
+        `;
+        playBtn.disabled = true;
+        
+        // Hide skip button since it's no longer needed
+        document.getElementById('skipAudioBtn').style.display = 'none';
+        
+        // Show typing phase
+        document.getElementById('typingPhase').style.display = 'block';
+        
+        // Enable typing
+        startTypingPhase();
     }
 
     // Text size control functions
