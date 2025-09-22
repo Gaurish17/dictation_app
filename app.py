@@ -2247,9 +2247,51 @@ def init_db():
         
         db.session.commit()
 
+# Ensure admin accounts exist on startup (for Render deployments)
+def ensure_admin_accounts_startup():
+    """Ensure admin accounts exist - run on every startup"""
+    try:
+        with app.app_context():
+            db.create_all()
+            
+            # Check if admin accounts exist
+            admin_exists = User.query.filter_by(username='admin').first()
+            super_exists = User.query.filter_by(username='superuser').first()
+            
+            if not admin_exists:
+                admin_user = User(
+                    username='admin',
+                    password_hash=hash_password('admin123'),
+                    role='admin',
+                    is_active=True,
+                    is_locked=False,
+                    created_at=datetime.now(timezone.utc)
+                )
+                db.session.add(admin_user)
+                print("✅ Created admin account on startup")
+            
+            if not super_exists:
+                super_user = User(
+                    username='superuser',
+                    password_hash=hash_password('super123'),
+                    role='superuser',
+                    is_active=True,
+                    is_locked=False,
+                    created_at=datetime.now(timezone.utc)
+                )
+                db.session.add(super_user)
+                print("✅ Created superuser account on startup")
+            
+            db.session.commit()
+            print("💾 Admin accounts ensured on startup")
+            
+    except Exception as e:
+        print(f"❌ Error ensuring admin accounts on startup: {e}")
+
 # Initialize database automatically when app starts
 try:
     init_db()
+    ensure_admin_accounts_startup()  # Ensure admin accounts exist
     print("✅ Database initialized successfully")
 except Exception as e:
     print(f"❌ Database initialization error: {e}")
