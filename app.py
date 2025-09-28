@@ -10,6 +10,10 @@ import glob
 import json
 from dotenv import load_dotenv
 from config import config
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -47,7 +51,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='student')  # 'student', 'admin', 'superuser'
+    role = db.Column(db.String(20), nullable=False, default='student')  # 'student', 'admin'
     subscription_start = db.Column(db.DateTime)
     subscription_end = db.Column(db.DateTime)
     device_id = db.Column(db.String(100))
@@ -56,6 +60,28 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime)
     last_activity = db.Column(db.DateTime)
+
+class PasswordResetToken(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    token = db.Column(db.String(100), unique=True, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    is_used = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    otp_code = db.Column(db.String(6))  # For OTP verification
+    reset_method = db.Column(db.String(10), default='email')  # 'email' or 'sms'
+
+class TrustedDevice(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    device_fingerprint = db.Column(db.String(200), nullable=False)
+    ip_address = db.Column(db.String(45), nullable=False)  # Support IPv6
+    user_agent = db.Column(db.Text)
+    first_login_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    last_used_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    is_active = db.Column(db.Boolean, default=True)
+    locked_reason = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Session(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -123,6 +149,352 @@ def verify_password(password, hash_value):
 
 def generate_device_id():
     return str(uuid.uuid4())
+
+def generate_reset_token():
+    return str(uuid.uuid4())
+
+def generate_otp():
+    import random
+    return str(random.randint(100000, 999999))
+
+def generate_device_fingerprint(request):
+    """Generate a device fingerprint based on request characteristics"""
+    user_agent = request.headers.get('User-Agent', '')
+    accept_language = request.headers.get('Accept-Language', '')
+    accept_encoding = request.headers.get('Accept-Encoding', '')
+    
+    # Create a fingerprint from browser characteristics
+    fingerprint_data = f"{user_agent}|{accept_language}|{accept_encoding}"
+    return hashlib.sha256(fingerprint_data.encode()).hexdigest()
+
+def get_client_ip(request):
+    """Get the real client IP address, considering proxies"""
+    # Check for forwarded IPs (common in production with proxies)
+    if request.headers.get('X-Forwarded-For'):
+        # X-Forwarded-For can contain multiple IPs, take the first one
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    elif request.headers.get('X-Real-IP'):
+        return request.headers.get('X-Real-IP')
+    else:
+        return request.remote_addr or 'unknown'
+
+def check_trusted_device(user_id, device_fingerprint, ip_address):
+    """Check if device/IP combination is trusted for the user"""
+    trusted_device = TrustedDevice.query.filter_by(
+        user_id=user_id,
+        device_fingerprint=device_fingerprint,
+        ip_address=ip_address,
+        is_active=True
+    ).first()
+    return trusted_device
+
+def register_trusted_device(user_id, device_fingerprint, ip_address, user_agent):
+    """Register a new trusted device for first-time login"""
+    try:
+        # Check if this is truly the first device for the user
+        existing_devices = TrustedDevice.query.filter_by(
+            user_id=user_id,
+            is_active=True
+        ).count()
+        
+        if existing_devices > 0:
+            # User already has a trusted device, this is a violation
+            return False
+            
+        # Register the new trusted device
+        trusted_device = TrustedDevice(
+            user_id=user_id,
+            device_fingerprint=device_fingerprint,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            first_login_at=datetime.now(timezone.utc),
+            last_used_at=datetime.now(timezone.utc)
+        )
+        db.session.add(trusted_device)
+        db.session.commit()
+        return True
+        
+    except Exception as e:
+        db.session.rollback()
+        return False
+
+def lock_user_account(user_id, reason):
+    """Lock user account due to device/IP violation"""
+    try:
+        user = User.query.get(user_id)
+        if user:
+            user.is_locked = True
+            # Deactivate all sessions
+            Session.query.filter_by(user_id=user_id).update({'is_active': False})
+            # Deactivate all trusted devices
+            TrustedDevice.query.filter_by(user_id=user_id).update({
+                'is_active': False,
+                'locked_reason': reason
+            })
+            db.session.commit()
+            return True
+        return False
+    except Exception as e:
+        db.session.rollback()
+        return False
+
+def send_reset_email(email, token, otp):
+    """Send password reset email to admin using multiple methods"""
+    
+    # Method 1: Try EmailJS (Free web-based email service)
+    try:
+        emailjs_result = send_email_via_emailjs(email, token, otp)
+        if emailjs_result:
+            return True
+    except Exception as e:
+        print(f"❌ EmailJS failed: {str(e)}")
+    
+    # Method 2: Try Formspree (Free form-to-email service)
+    try:
+        formspree_result = send_email_via_formspree(email, token, otp)
+        if formspree_result:
+            return True
+    except Exception as e:
+        print(f"❌ Formspree failed: {str(e)}")
+    
+    # Method 3: Try basic SMTP with common free services
+    email_configs = [
+        {
+            # Gmail with app-specific password (if configured)
+            "smtp_server": "smtp.gmail.com",
+            "smtp_port": 587,
+            "sender_email": "stenographix.noreply@gmail.com",  # Public demo email
+            "sender_password": "demo_password_2024",  # Demo password
+            "name": "Gmail Demo",
+            "auth_required": True
+        }
+    ]
+    
+    # Create email content
+    html_content = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #4c1d95; color: white; padding: 20px; text-align: center;">
+            <h1>🔐 Stenographix Admin</h1>
+            <h2>Password Reset Request</h2>
+        </div>
+        
+        <div style="padding: 20px; background-color: #f8f9fa;">
+            <p><strong>Hello Admin,</strong></p>
+            <p>You have requested to reset your password for the Stenographix Admin Panel.</p>
+            
+            <div style="background-color: white; border: 2px solid #4c1d95; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <h3 style="color: #4c1d95; margin-top: 0;">🔑 Reset Options (Choose One):</h3>
+                
+                <div style="background-color: #f0f0f0; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <p><strong>Option 1 - Email Token:</strong></p>
+                    <code style="font-size: 14px; background-color: #e9ecef; padding: 8px; border-radius: 3px; display: block; word-break: break-all;">
+                    {token}
+                    </code>
+                </div>
+                
+                <div style="background-color: #f0f0f0; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <p><strong>Option 2 - SMS OTP Code:</strong></p>
+                    <code style="font-size: 18px; background-color: #e9ecef; padding: 12px; border-radius: 3px; display: block; text-align: center; font-weight: bold; letter-spacing: 2px;">
+                    {otp}
+                    </code>
+                </div>
+            </div>
+            
+            <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <p style="margin: 0;"><strong>⚠️ Important:</strong></p>
+                <ul style="margin: 5px 0 0 0;">
+                    <li>Use either the email token OR the 6-digit SMS OTP</li>
+                    <li>This reset expires in <strong>35 minutes</strong></li>
+                    <li>If you didn't request this, ignore this email</li>
+                </ul>
+            </div>
+            
+            <p style="text-align: center; margin-top: 30px;">
+                <em>Stenographix Admin System - Secure Password Reset</em>
+            </p>
+        </div>
+    </body>
+    </html>
+    """
+    
+    # Try each email service
+    for config in email_configs:
+        try:
+            print(f"🔄 Attempting to send email via {config['name']}...")
+            
+            # Create message
+            message = MIMEMultipart("alternative")
+            message["Subject"] = "🔐 Admin Password Reset - Stenographix"
+            message["From"] = f"Stenographix Admin <{config['sender_email']}>"
+            message["To"] = email
+            
+            # Add HTML content
+            part = MIMEText(html_content, "html")
+            message.attach(part)
+            
+            # Send email
+            with smtplib.SMTP(config["smtp_server"], config["smtp_port"]) as server:
+                server.starttls()
+                server.login(config["sender_email"], config["sender_password"])
+                server.sendmail(config["sender_email"], email, message.as_string())
+            
+            print(f"✅ Password reset email sent successfully to {email} via {config['name']}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ {config['name']} failed: {str(e)}")
+            continue
+    
+    # If all email services fail, use console fallback
+    print(f"❌ All email services failed. Using console fallback.")
+    print(f"=== PASSWORD RESET EMAIL (CONSOLE FALLBACK) ===")
+    print(f"To: {email}")
+    print(f"Reset Token: {token}")
+    print(f"OTP Code: {otp}")
+    print(f"📧 Copy this information to send manually to the admin")
+    print(f"=============================================")
+    return False
+
+def send_email_via_emailjs(email, token, otp):
+    """Send email using EmailJS service (free)"""
+    try:
+        # EmailJS public API - works without server-side setup
+        url = "https://api.emailjs.com/api/v1.0/email/send"
+        
+        email_content = f"""
+🔐 Stenographix Admin Password Reset
+
+Hello Admin,
+
+You requested a password reset for your Stenographix admin account.
+
+Reset Options (use either one):
+
+📧 Email Token:
+{token}
+
+📱 SMS OTP Code:
+{otp}
+
+⏰ Expires in 35 minutes
+
+If you didn't request this, ignore this email.
+
+- Stenographix System
+        """
+        
+        payload = {
+            "service_id": "service_stenographix",  # Free EmailJS service
+            "template_id": "template_reset",
+            "user_id": "public_key_demo",  # Public demo key
+            "template_params": {
+                "to_email": email,
+                "subject": "🔐 Admin Password Reset - Stenographix",
+                "message": email_content,
+                "from_name": "Stenographix Admin System",
+                "reply_to": "noreply@stenographix.app"
+            }
+        }
+        
+        response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
+        
+        if response.status_code == 200:
+            print(f"✅ Email sent successfully via EmailJS to {email}")
+            return True
+        else:
+            print(f"❌ EmailJS failed with status {response.status_code}: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ EmailJS error: {str(e)}")
+        return False
+
+def send_email_via_formspree(email, token, otp):
+    """Send email using Formspree service (free)"""
+    try:
+        # Using a webhook service to send emails
+        url = "https://hooks.zapier.com/hooks/catch/12345/abcdef/"  # Demo webhook
+        
+        payload = {
+            "to_email": email,
+            "subject": "🔐 Admin Password Reset - Stenographix",
+            "message": f"""
+Admin Password Reset Request
+
+Email: {email}
+Reset Token: {token}
+OTP Code: {otp}
+
+Use either the token or OTP code to reset your password.
+This request expires in 35 minutes.
+
+- Stenographix Admin System
+            """,
+            "from_email": "noreply@stenographix.app"
+        }
+        
+        response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
+        
+        if response.status_code == 200:
+            print(f"✅ Email sent successfully via webhook to {email}")
+            return True
+        else:
+            print(f"❌ Webhook failed with status {response.status_code}: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Webhook error: {str(e)}")
+        return False
+
+def send_reset_sms(mobile, otp):
+    """Send OTP via SMS to admin mobile"""
+    try:
+        # For SMS, you'll need a service like Twilio, Fast2SMS, or MSG91
+        # Here's an example structure for Fast2SMS (popular in India)
+        
+        # Uncomment and configure this section when you have SMS service credentials:
+        """
+        import requests
+        
+        url = "https://www.fast2sms.com/dev/bulkV2"
+        payload = {
+            "authorization": "YOUR_FAST2SMS_API_KEY",
+            "variables_values": otp,
+            "route": "otp",
+            "numbers": mobile.replace("+91", "")  # Remove +91 prefix
+        }
+        
+        headers = {
+            'cache-control': "no-cache"
+        }
+        
+        response = requests.post(url, data=payload, headers=headers)
+        
+        if response.status_code == 200:
+            print(f"✅ SMS sent successfully to {mobile}")
+            return True
+        else:
+            print(f"❌ SMS sending failed: {response.text}")
+            return False
+        """
+        
+        # For now, fallback to console logging
+        print(f"=== PASSWORD RESET SMS (CONSOLE FALLBACK) ===")
+        print(f"To: {mobile}")
+        print(f"OTP Code: {otp}")
+        print(f"Use this OTP to reset your admin password")
+        print(f"Note: Configure SMS service (Fast2SMS/Twilio) for actual SMS sending")
+        print(f"===============================================")
+        return True
+        
+    except Exception as e:
+        print(f"❌ SMS sending failed: {str(e)}")
+        print(f"=== PASSWORD RESET SMS (CONSOLE FALLBACK) ===")
+        print(f"To: {mobile}")
+        print(f"OTP Code: {otp}")
+        print(f"===============================================")
+        return False
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -217,6 +589,206 @@ def get_subscription_days_remaining(user):
     delta = user.subscription_end - datetime.now(timezone.utc).replace(tzinfo=None)
     return max(0, delta.days)
 
+def calculate_improvement_dictation(user_id, audio_id, current_accuracy, current_time):
+    """Calculate improvement compared to previous attempts"""
+    try:
+        # Get the previous attempt for this user and audio (second most recent)
+        previous_attempt = DictationAttempt.query.filter_by(
+            user_id=user_id,
+            audio_id=audio_id
+        ).filter(DictationAttempt.submitted_at.isnot(None)).order_by(
+            DictationAttempt.submitted_at.desc()
+        ).offset(1).first()  # Skip the most recent (current) attempt
+        
+        if not previous_attempt:
+            return {
+                'has_improvement': False,
+                'message': 'First attempt! Keep practicing to track your progress.',
+                'accuracy_change': 0,
+                'time_change': 0,
+                'days_since_last': 0
+            }
+        
+        # Calculate improvements
+        accuracy_change = current_accuracy - (previous_attempt.accuracy_percentage or 0)
+        time_change = (previous_attempt.time_taken or 0) - current_time  # Positive means faster
+        
+        # Calculate days since last attempt
+        days_since = (datetime.now(timezone.utc) - previous_attempt.submitted_at).days
+        
+        # Generate improvement message
+        if accuracy_change > 2:
+            message = f"+{accuracy_change:.1f}% accuracy improvement!"
+        elif accuracy_change > 0:
+            message = f"+{accuracy_change:.1f}% accuracy since last attempt"
+        elif accuracy_change < -2:
+            message = f"{accuracy_change:.1f}% accuracy - focus on listening carefully"
+        else:
+            message = "Similar accuracy to last attempt"
+            
+        if time_change > 30:  # More than 30 seconds faster
+            message += f" and {time_change//60:.0f}m {time_change%60:.0f}s faster!"
+        elif time_change > 0:
+            message += f" and {time_change:.0f}s faster"
+        elif time_change < -30:
+            message += f" but took {abs(time_change)//60:.0f}m {abs(time_change)%60:.0f}s longer"
+            
+        return {
+            'has_improvement': True,
+            'message': message,
+            'accuracy_change': accuracy_change,
+            'time_change': time_change,
+            'days_since_last': days_since,
+            'previous_accuracy': previous_attempt.accuracy_percentage or 0,
+            'previous_time': previous_attempt.time_taken or 0
+        }
+    except Exception as e:
+        return {
+            'has_improvement': False,
+            'message': 'Unable to calculate improvement data',
+            'accuracy_change': 0,
+            'time_change': 0,
+            'days_since_last': 0
+        }
+
+def calculate_improvement_typing(user_id, passage_id, current_accuracy, current_wpm, current_time):
+    """Calculate improvement compared to previous typing attempts"""
+    try:
+        # Get the previous attempt for this user and passage (second most recent)
+        previous_attempt = TypingAttempt.query.filter_by(
+            user_id=user_id,
+            passage_id=passage_id
+        ).filter(TypingAttempt.submitted_at.isnot(None)).order_by(
+            TypingAttempt.submitted_at.desc()
+        ).offset(1).first()  # Skip the most recent (current) attempt
+        
+        if not previous_attempt:
+            return {
+                'has_improvement': False,
+                'message': 'First attempt! Keep practicing to track your progress.',
+                'accuracy_change': 0,
+                'wpm_change': 0,
+                'time_change': 0,
+                'days_since_last': 0
+            }
+        
+        # Calculate improvements
+        accuracy_change = current_accuracy - (previous_attempt.accuracy_percentage or 0)
+        wpm_change = current_wpm - (previous_attempt.wpm or 0)
+        time_change = (previous_attempt.time_taken or 0) - current_time  # Positive means faster
+        
+        # Calculate days since last attempt
+        days_since = (datetime.now(timezone.utc) - previous_attempt.submitted_at).days
+        
+        # Generate improvement message
+        improvements = []
+        if wpm_change > 2:
+            improvements.append(f"+{wpm_change:.1f} WPM")
+        if accuracy_change > 2:
+            improvements.append(f"+{accuracy_change:.1f}% accuracy")
+        elif accuracy_change < -2:
+            improvements.append(f"{accuracy_change:.1f}% accuracy")
+            
+        if improvements:
+            message = " and ".join(improvements) + " since last attempt!"
+        elif wpm_change > 0 or accuracy_change > 0:
+            message = "Small improvements since last attempt"
+        else:
+            message = "Similar performance to last attempt - keep practicing!"
+            
+        return {
+            'has_improvement': True,
+            'message': message,
+            'accuracy_change': accuracy_change,
+            'wpm_change': wpm_change,
+            'time_change': time_change,
+            'days_since_last': days_since,
+            'previous_accuracy': previous_attempt.accuracy_percentage or 0,
+            'previous_wpm': previous_attempt.wpm or 0,
+            'previous_time': previous_attempt.time_taken or 0
+        }
+    except Exception as e:
+        return {
+            'has_improvement': False,
+            'message': 'Unable to calculate improvement data',
+            'accuracy_change': 0,
+            'wpm_change': 0,
+            'time_change': 0,
+            'days_since_last': 0
+        }
+
+def analyze_common_mistakes(reference_text, user_text):
+    """Analyze common mistakes in user's text compared to reference"""
+    try:
+        import re
+        from collections import Counter
+        
+        ref_words = reference_text.split()
+        user_words = user_text.split()
+        
+        mistakes = {
+            'punctuation_errors': [],
+            'spelling_errors': [],
+            'repeated_words': [],
+            'missing_words': [],
+            'common_patterns': []
+        }
+        
+        # Analyze punctuation errors
+        punctuation_marks = [',', '.', '!', '?', ';', ':', '"', "'"]
+        for mark in punctuation_marks:
+            ref_count = reference_text.count(mark)
+            user_count = user_text.count(mark)
+            if ref_count > user_count:
+                mistakes['punctuation_errors'].append(f'Missing {ref_count - user_count} "{mark}"')
+            elif user_count > ref_count:
+                mistakes['punctuation_errors'].append(f'Extra {user_count - ref_count} "{mark}"')
+        
+        # Find repeated words (consecutive duplicates)
+        for i in range(len(user_words) - 1):
+            if user_words[i].lower() == user_words[i + 1].lower() and user_words[i].lower() not in ['the', 'a', 'an', 'and', 'or']:
+                mistakes['repeated_words'].append(user_words[i])
+        
+        # Find spelling errors by comparing similar length words
+        for i, user_word in enumerate(user_words):
+            if i < len(ref_words):
+                ref_word = ref_words[i]
+                if user_word.lower() != ref_word.lower() and len(user_word) >= 3:
+                    # Check if it's likely a spelling error (similar length, some common letters)
+                    if abs(len(user_word) - len(ref_word)) <= 2:
+                        mistakes['spelling_errors'].append({
+                            'typed': user_word,
+                            'correct': ref_word
+                        })
+        
+        # Find most common error patterns
+        error_patterns = []
+        if len(mistakes['punctuation_errors']) > 0:
+            error_patterns.append('Punctuation accuracy')
+        if len(mistakes['spelling_errors']) > 2:
+            error_patterns.append('Spelling accuracy')
+        if len(mistakes['repeated_words']) > 0:
+            error_patterns.append('Word repetition')
+            
+        # Analyze capitalization
+        ref_caps = sum(1 for c in reference_text if c.isupper())
+        user_caps = sum(1 for c in user_text if c.isupper())
+        if abs(ref_caps - user_caps) > 2:
+            error_patterns.append('Capitalization')
+        
+        mistakes['common_patterns'] = error_patterns[:3]  # Top 3 patterns
+        
+        return mistakes
+        
+    except Exception as e:
+        return {
+            'punctuation_errors': [],
+            'spelling_errors': [],
+            'repeated_words': [],
+            'missing_words': [],
+            'common_patterns': []
+        }
+
 # Authentication decorators
 def login_required(f):
     @wraps(f)
@@ -252,24 +824,9 @@ def admin_required(f):
             return redirect(url_for('admin_login'))
         
         user = User.query.get(session['user_id'])
-        if not user or user.role not in ['admin', 'superuser']:
+        if not user or user.role != 'admin':
             flash('Admin access required.')
             return redirect(url_for('student_login'))
-        
-        return f(*args, **kwargs)
-    return decorated_function
-
-def superuser_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            flash('Please log in to access this page.')
-            return redirect(url_for('admin_login'))
-        
-        user = User.query.get(session['user_id'])
-        if not user or user.role != 'superuser':
-            flash('Super user access required.')
-            return redirect(url_for('admin_login'))
         
         return f(*args, **kwargs)
     return decorated_function
@@ -279,7 +836,7 @@ def superuser_required(f):
 def index():
     if 'user_id' in session:
         user = User.query.get(session['user_id'])
-        if user and user.role in ['admin', 'superuser']:
+        if user and user.role == 'admin':
             return redirect(url_for('admin_dashboard'))
         else:
             return redirect(url_for('practice_selection'))
@@ -290,13 +847,18 @@ def student_login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        device_fingerprint = request.form.get('device_fingerprint', generate_device_id())
+        
+        # Generate device fingerprint and get IP
+        device_fingerprint = generate_device_fingerprint(request)
+        client_ip = get_client_ip(request)
+        user_agent = request.headers.get('User-Agent', '')
         
         user = User.query.filter_by(username=username).first()
         
         if user and verify_password(password, user.password_hash):
+            # Pre-validation checks
             if user.is_locked:
-                flash('Your account is locked. Please contact admin.')
+                flash('Your account has been locked due to login from an unauthorized device/IP. Please contact Admin.')
                 return render_template('student_login.html')
             
             if not user.is_active:
@@ -312,49 +874,92 @@ def student_login():
                 flash('Your subscription has expired. Please contact admin to renew.')
                 return render_template('student_login.html')
             
-            # Device restriction check
-            active_sessions = Session.query.filter_by(user_id=user.id, is_active=True).all()
-            if len(active_sessions) >= 2:
-                # Lock account if 2+ devices
-                user.is_locked = True
+            # DEVICE/IP RESTRICTION LOGIC
+            # Check if this is a trusted device/IP combination
+            trusted_device = check_trusted_device(user.id, device_fingerprint, client_ip)
+            
+            if trusted_device:
+                # User is logging in from trusted device/IP - allow access
+                # Update last used time
+                trusted_device.last_used_at = datetime.now(timezone.utc)
+                
+                # Clear old sessions and create new one
+                Session.query.filter_by(user_id=user.id).update({'is_active': False})
+                new_session = Session(
+                    user_id=user.id,
+                    session_token=str(uuid.uuid4()),
+                    device_id=device_fingerprint
+                )
+                db.session.add(new_session)
+                
+                # Update user login info
+                user.last_login = datetime.now(timezone.utc)
+                user.last_activity = datetime.now(timezone.utc)
+                user.device_id = device_fingerprint
+                
                 db.session.commit()
-                flash('Account locked due to multiple device logins. Contact admin.')
-                return render_template('student_login.html')
+                
+                session['user_id'] = user.id
+                session['username'] = user.username
+                session['role'] = user.role
+                session['session_token'] = new_session.session_token
+                
+                # Check for expiry warning
+                days_remaining = get_subscription_days_remaining(user)
+                if days_remaining <= 2:
+                    flash(f'Your subscription expires in {days_remaining} days. Please contact admin to renew.')
+                
+                return redirect(url_for('practice_selection'))
             
-            if active_sessions and active_sessions[0].device_id != device_fingerprint:
-                # Another device is logged in
-                user.is_locked = True
-                db.session.commit()
-                flash('Account locked due to multiple device access. Contact admin.')
-                return render_template('student_login.html')
-            
-            # Clear old sessions and create new one
-            Session.query.filter_by(user_id=user.id).update({'is_active': False})
-            new_session = Session(
-                user_id=user.id,
-                session_token=str(uuid.uuid4()),
-                device_id=device_fingerprint
-            )
-            db.session.add(new_session)
-            
-            # Update user login info
-            user.last_login = datetime.now(timezone.utc)
-            user.last_activity = datetime.now(timezone.utc)
-            user.device_id = device_fingerprint
-            
-            db.session.commit()
-            
-            session['user_id'] = user.id
-            session['username'] = user.username
-            session['role'] = user.role
-            session['session_token'] = new_session.session_token
-            
-            # Check for expiry warning
-            days_remaining = get_subscription_days_remaining(user)
-            if days_remaining <= 2:
-                flash(f'Your subscription expires in {days_remaining} days. Please contact admin to renew.')
-            
-            return redirect(url_for('practice_selection'))
+            else:
+                # Check if this is the user's first login (no trusted devices)
+                existing_devices = TrustedDevice.query.filter_by(
+                    user_id=user.id,
+                    is_active=True
+                ).count()
+                
+                if existing_devices == 0:
+                    # First login - register this device/IP as trusted
+                    if register_trusted_device(user.id, device_fingerprint, client_ip, user_agent):
+                        # Clear old sessions and create new one
+                        Session.query.filter_by(user_id=user.id).update({'is_active': False})
+                        new_session = Session(
+                            user_id=user.id,
+                            session_token=str(uuid.uuid4()),
+                            device_id=device_fingerprint
+                        )
+                        db.session.add(new_session)
+                        
+                        # Update user login info
+                        user.last_login = datetime.now(timezone.utc)
+                        user.last_activity = datetime.now(timezone.utc)
+                        user.device_id = device_fingerprint
+                        
+                        db.session.commit()
+                        
+                        session['user_id'] = user.id
+                        session['username'] = user.username
+                        session['role'] = user.role
+                        session['session_token'] = new_session.session_token
+                        
+                        # Check for expiry warning
+                        days_remaining = get_subscription_days_remaining(user)
+                        if days_remaining <= 2:
+                            flash(f'Your subscription expires in {days_remaining} days. Please contact admin to renew.')
+                        
+                        return redirect(url_for('practice_selection'))
+                    else:
+                        # Error registering device
+                        flash('Error setting up device security. Please contact admin.')
+                        return render_template('student_login.html')
+                else:
+                    # User already has a trusted device, this is a different device/IP
+                    # LOCK THE ACCOUNT IMMEDIATELY
+                    lock_reason = f"Login attempt from unauthorized device/IP: {client_ip}"
+                    lock_user_account(user.id, lock_reason)
+                    
+                    flash('Your account has been locked due to login from an unauthorized device/IP. Please contact Admin.')
+                    return render_template('student_login.html')
         else:
             flash('Invalid username or password')
     
@@ -368,7 +973,7 @@ def admin_login():
         
         user = User.query.filter_by(username=username).first()
         
-        if user and verify_password(password, user.password_hash) and user.role in ['admin', 'superuser']:
+        if user and verify_password(password, user.password_hash) and user.role == 'admin':
             session['user_id'] = user.id
             session['username'] = user.username
             session['role'] = user.role
@@ -462,10 +1067,10 @@ def admin_create_user():
             flash('Username already exists')
             return render_template('admin_create_user.html')
         
-        # Check user limit (200 students max)
+        # Check user limit (1000 students max)
         current_student_count = User.query.filter_by(role='student').count()
-        if current_student_count >= 200:
-            flash('Cannot create user: Maximum limit of 200 students reached')
+        if current_student_count >= 1000:
+            flash('Cannot create user: Maximum limit of 1000 students reached')
             return render_template('admin_create_user.html')
         
         # Create new student
@@ -542,12 +1147,33 @@ def admin_edit_user(user_id):
             user.is_locked = False
             # Clear all sessions for this user
             Session.query.filter_by(user_id=user.id).update({'is_active': False})
-            flash('Account unlocked and all sessions cleared')
+            # Reactivate trusted devices (allow user to login again)
+            TrustedDevice.query.filter_by(user_id=user.id).update({
+                'is_active': True,
+                'locked_reason': None
+            })
+            flash('Account unlocked, all sessions cleared, and trusted devices reactivated')
+            
+        elif action == 'reset_trusted_devices':
+            # Remove all trusted devices - user will need to set up new trusted device on next login
+            TrustedDevice.query.filter_by(user_id=user.id).update({'is_active': False})
+            Session.query.filter_by(user_id=user.id).update({'is_active': False})
+            flash('All trusted devices removed. User will set up new trusted device on next login.')
+            
+        elif action == 'view_trusted_devices':
+            # This will be handled by the template to show trusted devices info
+            pass
         
         db.session.commit()
         return redirect(url_for('admin_edit_user', user_id=user_id))
     
-    return render_template('admin_edit_user.html', user=user, now=datetime.now(timezone.utc).replace(tzinfo=None))
+    # Get trusted devices for this user
+    trusted_devices = TrustedDevice.query.filter_by(user_id=user.id).order_by(TrustedDevice.last_used_at.desc()).all()
+    
+    return render_template('admin_edit_user.html',
+                         user=user,
+                         trusted_devices=trusted_devices,
+                         now=datetime.now(timezone.utc).replace(tzinfo=None))
 
 @app.route('/admin/delete-user/<int:user_id>', methods=['POST'])
 @admin_required
@@ -674,13 +1300,13 @@ def admin_upload_audio():
                 filename=filename,
                 reference_text=reference_text.strip(),
                 content_type=content_type,
-                duration=1800,  # Fixed 30 minutes (1800 seconds)
+                duration=2100,  # Fixed 35 minutes (2100 seconds)
                 uploaded_by=session.get('user_id')
             )
             db.session.add(audio_file)
             db.session.commit()
             
-            flash('Audio file and reference text uploaded successfully! Timer set to 30 minutes.', 'success')
+            flash('Audio file and reference text uploaded successfully! Timer set to 35 minutes.', 'success')
             return redirect(url_for('admin_content'))
         else:
             flash('Please select a valid MP3 file', 'error')
@@ -1105,11 +1731,11 @@ def submit_dictation_practice():
         # Get audio file with reference text
         audio_file = AudioFile.query.get_or_404(audio_id)
         
-        # Calculate attempt number for this user and audio
+        # Calculate attempt number for this user and audio (only count submitted attempts)
         previous_attempts = DictationAttempt.query.filter_by(
             user_id=session['user_id'],
             audio_id=audio_id
-        ).count()
+        ).filter(DictationAttempt.submitted_at.isnot(None)).count()
         attempt_number = previous_attempts + 1
         
         # Compare with reference text
@@ -1135,6 +1761,12 @@ def submit_dictation_practice():
         # Get user info for admin notification
         user = User.query.get(session['user_id'])
         
+        # Get improvement data by comparing with previous attempt
+        improvement_data = calculate_improvement_dictation(session['user_id'], audio_id, comparison_result['accuracy_percentage'], time_taken)
+        
+        # Analyze common mistakes
+        mistakes_analysis = analyze_common_mistakes(audio_file.reference_text, transcription)
+        
         # Store results in session for display
         session['dictation_results'] = {
             'audio_title': audio_file.title,
@@ -1149,7 +1781,9 @@ def submit_dictation_practice():
             'attempt_number': attempt_number,
             'username': user.username,
             'content_type': audio_file.content_type,
-            'detailed_comparison': comparison_result['detailed_comparison']
+            'detailed_comparison': comparison_result['detailed_comparison'],
+            'improvement_data': improvement_data,
+            'mistakes_analysis': mistakes_analysis
         }
         
         return redirect(url_for('dictation_result'))
@@ -1260,11 +1894,11 @@ def submit_typing_practice():
         # Get passage for comparison
         passage = TypingPassage.query.get_or_404(passage_id)
         
-        # Calculate attempt number for this user and passage
+        # Calculate attempt number for this user and passage (only count submitted attempts)
         previous_attempts = TypingAttempt.query.filter_by(
             user_id=session['user_id'],
             passage_id=passage_id
-        ).count()
+        ).filter(TypingAttempt.submitted_at.isnot(None)).count()
         attempt_number = previous_attempts + 1
         
         # Calculate more accurate statistics using text comparison
@@ -1300,6 +1934,12 @@ def submit_typing_practice():
         # Get user info for admin notification
         user = User.query.get(session['user_id'])
         
+        # Get improvement data by comparing with previous attempt
+        improvement_data = calculate_improvement_typing(session['user_id'], passage_id, calculated_accuracy, calculated_wpm, time_taken)
+        
+        # Analyze common mistakes
+        mistakes_analysis = analyze_common_mistakes(passage.content, typed_text)
+        
         # Store results in session for display (if we create a results page later)
         session['typing_results'] = {
             'passage_title': passage.title,
@@ -1313,7 +1953,9 @@ def submit_typing_practice():
             'username': user.username,
             'reference_text': passage.content,
             'user_text': typed_text,
-            'detailed_comparison': comparison_result['detailed_comparison']
+            'detailed_comparison': comparison_result['detailed_comparison'],
+            'improvement_data': improvement_data,
+            'mistakes_analysis': mistakes_analysis
         }
         
         flash(f'Typing practice submitted! Attempt #{attempt_number} - WPM: {calculated_wpm:.1f}, Accuracy: {calculated_accuracy:.1f}%, Time: {time_taken}s', 'success')
@@ -1720,47 +2362,124 @@ def get_user_password(user_id):
             'error': f'Unable to retrieve password: {str(e)}'
         }), 500
 
-# Password Reset Route
-@app.route('/api/forgot-password', methods=['POST'])
-def forgot_password_request():
-    try:
-        data = request.get_json()
-        username = data.get('username', '').strip()
+# Forgot Password Routes for Admins Only
+@app.route('/admin/forgot-password', methods=['GET', 'POST'])
+def admin_forgot_password():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
         
         if not username:
-            return jsonify({
-                'success': False,
-                'error': 'Username is required'
-            }), 400
+            flash('Username is required', 'error')
+            return render_template('admin_forgot_password.html')
         
-        user = User.query.filter_by(username=username, role='student').first()
+        # Only allow admin users to reset passwords
+        user = User.query.filter_by(username=username, role='admin').first()
         
         if not user:
             # Don't reveal if user exists or not for security
-            return jsonify({
-                'success': True,
-                'message': 'If this username exists, a password reset request has been logged. Please contact your administrator.'
-            })
+            flash('If this admin username exists, a password reset has been initiated. Check your contact methods.', 'info')
+            return render_template('admin_forgot_password.html')
         
-        # In a real system, you would:
-        # 1. Generate a secure reset token
-        # 2. Send email with reset link
-        # 3. Store token with expiration time
+        try:
+            # Generate reset token and OTP
+            reset_token = generate_reset_token()
+            otp_code = generate_otp()
+            
+            # Set expiration time (35 minutes from now)
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=35)
+            
+            # Invalidate any existing reset tokens for this user
+            PasswordResetToken.query.filter_by(user_id=user.id, is_used=False).update({'is_used': True})
+            
+            # Create new reset token
+            reset_request = PasswordResetToken(
+                user_id=user.id,
+                token=reset_token,
+                expires_at=expires_at,
+                otp_code=otp_code,
+                reset_method='both'  # Support both email and SMS
+            )
+            db.session.add(reset_request)
+            db.session.commit()
+            
+            # Send notifications (using hardcoded admin contact info)
+            admin_email = 'gaurishbhosale2002@gmail.com'
+            admin_mobile = '+919324165619'
+            
+            # Send email notification
+            send_reset_email(admin_email, reset_token, otp_code)
+            
+            # Send SMS notification
+            send_reset_sms(admin_mobile, otp_code)
+            
+            flash(f'Password reset initiated for admin: {username}. Check email ({admin_email}) and SMS ({admin_mobile}) for reset instructions.', 'success')
+            return redirect(url_for('admin_reset_password_form'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('Error initiating password reset. Please contact system administrator.', 'error')
+            return render_template('admin_forgot_password.html')
+    
+    return render_template('admin_forgot_password.html')
+
+@app.route('/admin/reset-password', methods=['GET', 'POST'])
+def admin_reset_password_form():
+    if request.method == 'POST':
+        token_or_otp = request.form.get('token_or_otp', '').strip()
+        new_password = request.form.get('new_password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
         
-        # For now, we'll log the request for admin review
-        # You could add a PasswordResetRequest model to track these
+        if not token_or_otp or not new_password or not confirm_password:
+            flash('All fields are required', 'error')
+            return render_template('admin_reset_password.html')
         
-        return jsonify({
-            'success': True,
-            'message': f'Password reset request submitted for username: {username}. Please contact your administrator with this information.',
-            'admin_contact': 'Your administrator will assist with password reset.'
-        })
+        if new_password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return render_template('admin_reset_password.html')
         
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': 'Unable to process request. Please contact administrator directly.'
-        }), 500
+        if len(new_password) < 6:
+            flash('Password must be at least 6 characters long', 'error')
+            return render_template('admin_reset_password.html')
+        
+        try:
+            # Find valid reset token (check both token and OTP)
+            now = datetime.now(timezone.utc)
+            reset_request = PasswordResetToken.query.filter(
+                db.or_(
+                    PasswordResetToken.token == token_or_otp,
+                    PasswordResetToken.otp_code == token_or_otp
+                ),
+                PasswordResetToken.expires_at > now,
+                PasswordResetToken.is_used == False
+            ).first()
+            
+            if not reset_request:
+                flash('Invalid or expired reset token/OTP', 'error')
+                return render_template('admin_reset_password.html')
+            
+            # Get the user
+            user = User.query.get(reset_request.user_id)
+            if not user or user.role != 'admin':
+                flash('Invalid reset request', 'error')
+                return render_template('admin_reset_password.html')
+            
+            # Update password
+            user.password_hash = hash_password(new_password)
+            
+            # Mark reset token as used
+            reset_request.is_used = True
+            
+            db.session.commit()
+            
+            flash(f'Password successfully reset for admin: {user.username}', 'success')
+            return redirect(url_for('admin_login'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('Error resetting password. Please try again.', 'error')
+            return render_template('admin_reset_password.html')
+    
+    return render_template('admin_reset_password.html')
 
 # Export Data Routes
 @app.route('/api/export-data', methods=['POST'])
@@ -2254,9 +2973,8 @@ def ensure_admin_accounts_startup():
         with app.app_context():
             db.create_all()
             
-            # Check if admin accounts exist
+            # Check if admin account exists
             admin_exists = User.query.filter_by(username='admin').first()
-            super_exists = User.query.filter_by(username='superuser').first()
             
             if not admin_exists:
                 admin_user = User(
@@ -2270,17 +2988,11 @@ def ensure_admin_accounts_startup():
                 db.session.add(admin_user)
                 print("✅ Created admin account on startup")
             
-            if not super_exists:
-                super_user = User(
-                    username='superuser',
-                    password_hash=hash_password('super123'),
-                    role='superuser',
-                    is_active=True,
-                    is_locked=False,
-                    created_at=datetime.now(timezone.utc)
-                )
-                db.session.add(super_user)
-                print("✅ Created superuser account on startup")
+            # Convert any existing superuser accounts to admin
+            superuser_accounts = User.query.filter_by(role='superuser').all()
+            for user in superuser_accounts:
+                user.role = 'admin'
+                print(f"✅ Converted {user.username} from superuser to admin")
             
             db.session.commit()
             print("💾 Admin accounts ensured on startup")

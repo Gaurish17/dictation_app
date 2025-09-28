@@ -28,7 +28,6 @@ def ensure_admin_accounts():
             
             # Check if admin accounts exist
             admin_exists = User.query.filter_by(username='admin').first()
-            super_exists = User.query.filter_by(username='superuser').first()
             
             if not admin_exists:
                 admin_user = User(
@@ -42,17 +41,11 @@ def ensure_admin_accounts():
                 db.session.add(admin_user)
                 print("✅ Created admin account")
             
-            if not super_exists:
-                super_user = User(
-                    username='superuser',
-                    password_hash=hash_password('super123'),
-                    role='superuser',
-                    is_active=True,
-                    is_locked=False,
-                    created_at=datetime.now(timezone.utc)
-                )
-                db.session.add(super_user)
-                print("✅ Created superuser account")
+            # Convert any existing superuser accounts to admin
+            superuser_accounts = User.query.filter_by(role='superuser').all()
+            for user in superuser_accounts:
+                user.role = 'admin'
+                print(f"✅ Converted {user.username} from superuser to admin")
             
             db.session.commit()
             print("💾 Admin accounts ensured")

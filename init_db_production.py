@@ -25,18 +25,11 @@ def init_production_db():
             db.create_all()
             print("✅ Tables created successfully")
             
-            # Create superuser if doesn't exist
-            if not User.query.filter_by(role='superuser').first():
-                superuser = User(
-                    username='superuser',
-                    password_hash=hash_password('super123'),
-                    role='superuser',
-                    is_active=True
-                )
-                db.session.add(superuser)
-                print("✅ Created superuser account")
-            else:
-                print("ℹ️  Superuser already exists")
+            # Convert any existing superuser accounts to admin
+            superuser_accounts = User.query.filter_by(role='superuser').all()
+            for user in superuser_accounts:
+                user.role = 'admin'
+                print(f"✅ Converted {user.username} from superuser to admin")
             
             # Create admin if doesn't exist
             if not User.query.filter_by(username='admin').first():
@@ -79,7 +72,6 @@ def init_production_db():
             
             # Verify database setup
             print("\n📋 Database Summary:")
-            print(f"   - Superusers: {User.query.filter_by(role='superuser').count()}")
             print(f"   - Admins: {User.query.filter_by(role='admin').count()}")
             print(f"   - Students: {User.query.filter_by(role='student').count()}")
             print(f"   - Total Users: {User.query.count()}")
@@ -87,7 +79,6 @@ def init_production_db():
             print("\n🎉 Database initialization completed successfully!")
             print("\n🔑 Default Login Credentials:")
             print("   Admin: admin / admin123")
-            print("   Superuser: superuser / super123")
             print("   Demo Students: student1, student2, student3 / student123")
             
             return True

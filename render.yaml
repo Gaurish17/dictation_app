@@ -2,7 +2,7 @@ services:
   - type: web
     name: dictation-app
     env: python
-    buildCommand: pip install -r requirements.txt && python3 render_admin_fix.py
+    buildCommand: pip install -r requirements.txt && python3 render_admin_fix.py && python3 migrate_trusted_devices.py
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: FLASK_ENV

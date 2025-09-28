@@ -111,7 +111,7 @@
                         >
                     </div>
                     
-                    <button 
+                    <button
                         type="submit"
                         class="w-full bg-purple-600 text-white py-3 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-200 font-medium"
                     >
@@ -119,13 +119,20 @@
                     </button>
                 </form>
                 
+                <!-- Forgot Password Link -->
+                <div class="mt-4 text-center">
+                    <a href="{{ url_for('admin_forgot_password') }}" class="text-sm text-purple-600 hover:text-purple-800 hover:underline">
+                        Forgot your admin password?
+                    </a>
+                </div>
+                
                 <!-- Admin Info -->
                 <div class="mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                     <div class="text-center">
-                        <h3 class="text-sm font-medium text-purple-800 mb-2">Admin Access Levels</h3>
+                        <h3 class="text-sm font-medium text-purple-800 mb-2">Admin Access</h3>
                         <div class="text-xs text-purple-700 space-y-1">
-                            <div><strong>Admin:</strong> User management, content upload, reports</div>
-                            <div><strong>Super User:</strong> Full system access, data backup</div>
+                            <div><strong>Admin:</strong> Complete system control, user management, content upload, reports</div>
+                            <div><strong>Forgot Password:</strong> Reset available via email & SMS</div>
                         </div>
                     </div>
                 </div>

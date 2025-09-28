@@ -67,7 +67,7 @@ def create_admin_accounts_render():
             db_found = True
             
             # Check existing admin users
-            cursor.execute("SELECT username, role, is_active FROM user WHERE role IN ('admin', 'superuser');")
+            cursor.execute("SELECT username, role, is_active FROM user WHERE role = 'admin';")
             existing_admins = cursor.fetchall()
             
             print(f"📋 Existing admin accounts: {len(existing_admins)}")
@@ -75,8 +75,8 @@ def create_admin_accounts_render():
                 print(f"   - {admin[0]} (role: {admin[1]}, active: {admin[2]})")
             
             # Delete existing admin accounts to avoid conflicts
-            cursor.execute("DELETE FROM user WHERE username IN ('admin', 'superuser');")
-            print("🗑️  Removed existing admin accounts")
+            cursor.execute("DELETE FROM user WHERE username = 'admin';")
+            print("🗑️  Removed existing admin account")
             
             # Create fresh admin accounts
             admin_password_hash = hash_password('admin123')
@@ -89,17 +89,15 @@ def create_admin_accounts_render():
                 VALUES (?, ?, ?, ?, ?, ?)
             """, ('admin', admin_password_hash, 'admin', 1, 0, current_time))
             
-            # Insert superuser account
-            cursor.execute("""
-                INSERT INTO user (username, password_hash, role, is_active, is_locked, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, ('superuser', super_password_hash, 'superuser', 1, 0, current_time))
+            # Convert any existing superuser accounts to admin
+            cursor.execute("UPDATE user SET role = 'admin' WHERE role = 'superuser';")
+            print("🔄 Converted any existing superuser accounts to admin")
             
             conn.commit()
             print("💾 Admin accounts created successfully!")
             
             # Verify accounts were created
-            cursor.execute("SELECT username, role, is_active FROM user WHERE role IN ('admin', 'superuser');")
+            cursor.execute("SELECT username, role, is_active FROM user WHERE role = 'admin';")
             new_admins = cursor.fetchall()
             
             print(f"\n✅ Verified {len(new_admins)} admin accounts:")
@@ -117,9 +115,7 @@ def create_admin_accounts_render():
             print("\n🔑 Login Credentials:")
             print("   Username: admin")
             print("   Password: admin123")
-            print("   OR")
-            print("   Username: superuser")
-            print("   Password: super123")
+            print("   Only admin role available - superuser role has been eliminated")
             print("\n🌐 Login URL: /admin-login")
             
             return True

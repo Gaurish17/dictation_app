@@ -79,7 +79,7 @@
                 <p class="text-green-800 text-sm">
                     ⌨️ <strong>Instructions:</strong> Type the text exactly as shown in the reference panel below. 
                     You have 10 minutes to complete this task. When finished or when time expires, your work will be automatically submitted.
-                    <br><strong>Note:</strong> Backspace, Delete, and Shift keys are disabled to prevent editing.
+                    <br><strong>Note:</strong> Backspace and Delete keys are disabled to prevent editing.
                 </p>
             </div>
 
@@ -273,12 +273,11 @@
             // Could add word count display here if needed
         }
 
-        // Handle key restrictions - disable Backspace, Delete, and Shift keys
+        // Handle key restrictions - disable Backspace and Delete keys
         function handleKeyRestrictions(event) {
             const restrictedKeys = [
                 'Backspace',    // Key code 8
-                'Delete',       // Key code 46
-                'Shift'         // Key code 16
+                'Delete'        // Key code 46
             ];
             
             // Check if the pressed key is in the restricted list

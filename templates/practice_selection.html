@@ -190,6 +190,13 @@
                         </div>
                     </div>
                     
+                    <!-- Instagram Button -->
+                    <a href="https://www.instagram.com/tachy_graphy?igsh=MW1jdTR4amw2cmw1aw==" target="_blank" class="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white p-2.5 rounded-lg transition-all duration-300 shadow-lg hover:shadow-pink-500/25 hover:transform hover:-translate-y-1" title="Follow us on Instagram">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12.017 0C8.396 0 7.929.013 6.71.072 5.493.131 4.73.333 4.058.63c-.692.3-1.276.703-1.858 1.284C1.618 2.496 1.215 3.08.915 3.772.618 4.444.416 5.207.357 6.424.298 7.643.285 8.11.285 11.731c0 3.622.013 4.089.072 5.308.059 1.217.261 1.98.558 2.652.3.692.703 1.276 1.284 1.858.582.582 1.166.985 1.858 1.284.672.297 1.435.499 2.652.558 1.219.059 1.686.072 5.308.072 3.622 0 4.089-.013 5.308-.072 1.217-.059 1.98-.261 2.652-.558.692-.3 1.276-.703 1.858-1.284.582-.582.985-1.166 1.284-1.858.297-.672.499-1.435.558-2.652.059-1.219.072-1.686.072-5.308 0-3.622-.013-4.089-.072-5.308-.059-1.217-.261-1.98-.558-2.652-.3-.692-.703-1.276-1.284-1.858C20.791 1.618 20.207 1.215 19.515.915c-.672-.297-1.435-.499-2.652-.558C15.644.013 15.177 0 11.555 0h.462zm-.405 2.16c.362-.003.762-.003 1.405-.003 3.56 0 3.983.013 5.384.071 1.207.055 1.885.249 2.325.413.584.227.999.498 1.436.935.437.437.708.852.935 1.436.164.44.358 1.118.413 2.325.058 1.401.071 1.824.071 5.384s-.013 3.983-.071 5.384c-.055 1.207-.249 1.885-.413 2.325-.227.584-.498.999-.935 1.436-.437.437-.852.708-1.436.935-.44.164-1.118.358-2.325.413-1.401.058-1.824.071-5.384.071s-3.983-.013-5.384-.071c-1.207-.055-1.885-.249-2.325-.413-.584-.227-.999-.498-1.436-.935-.437-.437-.708-.852-.935-1.436-.164-.44-.358-1.118-.413-2.325C2.173 15.738 2.16 15.315 2.16 11.755s.013-3.983.071-5.384c.055-1.207.249-1.885.413-2.325.227-.584.498-.999.935-1.436.437-.437.852-.708 1.436-.935.44-.164 1.118-.358 2.325-.413 1.226-.056 1.7-.068 4.372-.07zm8.556 1.963c-.884 0-1.6-.716-1.6-1.6s.716-1.6 1.6-1.6 1.6.716 1.6 1.6-.716 1.6-1.6 1.6zm-7.439 1.399c-3.739 0-6.77 3.031-6.77 6.77s3.031 6.77 6.77 6.77 6.77-3.031 6.77-6.77-3.031-6.77-6.77-6.77zm0 2.16c2.549 0 4.61 2.061 4.61 4.61s-2.061 4.61-4.61 4.61-4.61-2.061-4.61-4.61 2.061-4.61 4.61-4.61z"/>
+                        </svg>
+                    </a>
+                    
                     <!-- Logout Button -->
                     <a href="{{ url_for('logout') }}" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-lg font-medium">
                         <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -354,53 +361,6 @@
             </div>
         </div>
 
-        <!-- Stats Dashboard -->
-        <div class="bg-white rounded-3xl p-8 shadow-lg border border-gray-200">
-            <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">📊 Your Performance Overview</h2>
-            
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="text-center bg-gray-50 rounded-2xl p-6">
-                    <div class="w-12 h-12 bg-blue-600 rounded-xl mx-auto mb-3 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                    </div>
-                    <div class="text-3xl font-bold text-gray-800 mb-1">{{ user.created_at.strftime('%d') }}</div>
-                    <div class="text-gray-600 text-sm">Days Active</div>
-                </div>
-                
-                <div class="text-center bg-gray-50 rounded-2xl p-6">
-                    <div class="w-12 h-12 bg-green-600 rounded-xl mx-auto mb-3 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </div>
-                    <div class="text-3xl font-bold text-gray-800 mb-1">95%</div>
-                    <div class="text-gray-600 text-sm">Avg Accuracy</div>
-                </div>
-                
-                <div class="text-center bg-gray-50 rounded-2xl p-6">
-                    <div class="w-12 h-12 bg-purple-600 rounded-xl mx-auto mb-3 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                        </svg>
-                    </div>
-                    <div class="text-3xl font-bold text-gray-800 mb-1">68</div>
-                    <div class="text-gray-600 text-sm">Best WPM</div>
-                </div>
-                
-                <div class="text-center bg-gray-50 rounded-2xl p-6">
-                    <div class="w-12 h-12 bg-orange-600 rounded-xl mx-auto mb-3 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </div>
-                    {% set remaining_days = ((user.subscription_end - now).days) if user.subscription_end and user.subscription_end > now else 0 %}
-                    <div class="text-3xl font-bold text-gray-800 mb-1">{{ remaining_days }}</div>
-                    <div class="text-gray-600 text-sm">Days Left</div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
