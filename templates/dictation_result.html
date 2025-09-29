@@ -393,8 +393,8 @@
             </div>
         </div>
 
-        <!-- Result Analysis - Single View (No Side-by-Side) -->
-        {% if results and results.reference_text and results.user_text and results.detailed_comparison %}
+        <!-- Enhanced Result Analysis - Mistake Highlighting -->
+        {% if results and results.reference_text and results.user_text and results.enhanced_comparison %}
         <div class="bg-white shadow-2xl rounded-2xl mb-12 border-2 border-gray-300">
             <div class="px-10 py-8 border-b-2 border-gray-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50">
                 <h2 class="text-3xl font-bold text-gray-900 text-center mb-3">📝 Your Transcription Results</h2>
@@ -411,27 +411,16 @@
                     </h3>
                     <div class="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-300 rounded-xl p-6 shadow-lg">
                         <div class="text-lg leading-relaxed">
-                            {% for i in range(results.detailed_comparison.reference_words|length) %}
-                                {% set ref_word = results.detailed_comparison.reference_words[i] %}
-                                {% set typed_word = results.detailed_comparison.typed_words[i] if i < results.detailed_comparison.typed_words|length else '' %}
-                                {% set comparison = results.detailed_comparison.comparison_result[i] %}
-                                
-                                {% if comparison == 'correct' %}
-                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: black; background-color: #f8f9fa; border: 1px solid #e9ecef;">{{ typed_word }}</span>
-                                {% elif comparison == 'incorrect' %}
-                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: red; background-color: #fff5f5; border: 1px solid #fed7d7;">{{ typed_word }}</span>
-                                {% elif comparison == 'missing' %}
-                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: green; background-color: #f0fff4; border: 1px solid #c6f6d5;">{{ ref_word }} (missed)</span>
-                                {% elif comparison == 'extra' and typed_word %}
-                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: orange; background-color: #fffaf0; border: 1px solid #fed7aa;">{{ typed_word }} (extra)</span>
-                                {% endif %}
-                            {% endfor %}
-                            
-                            <!-- Handle any extra words at the end -->
-                            {% for i in range(results.detailed_comparison.reference_words|length, results.detailed_comparison.typed_words|length) %}
-                                {% set typed_word = results.detailed_comparison.typed_words[i] %}
-                                {% if typed_word %}
-                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: orange; background-color: #fffaf0; border: 1px solid #fed7aa;">{{ typed_word }} (extra)</span>
+                            {% for item in results.enhanced_comparison %}
+                                {% if item.type == 'correct' %}
+                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: black; background-color: #f8f9fa; border: 1px solid #e9ecef;">{{ item.display_word }}</span>
+                                {% elif item.type == 'wrong' %}
+                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: red; background-color: #fff5f5; border: 1px solid #fed7d7; text-decoration: line-through;">{{ item.typed_word }}</span>
+                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: red; background-color: #fff5f5; border: 1px solid #fed7d7;">{{ item.reference_word }}</span>
+                                {% elif item.type == 'missed' %}
+                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: red; background-color: #fff5f5; border: 1px solid #fed7d7;">{{ item.display_word }}</span>
+                                {% elif item.type == 'extra' %}
+                                    <span class="inline-block mr-2 mb-2 px-3 py-2 rounded-lg font-medium text-lg" style="color: orange; background-color: #fffaf0; border: 1px solid #fed7aa;">{{ item.display_word }}</span>
                                 {% endif %}
                             {% endfor %}
                         </div>

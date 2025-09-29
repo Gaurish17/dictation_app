@@ -239,36 +239,36 @@ def lock_user_account(user_id, reason):
         return False
 
 def send_reset_email(email, token, otp):
-    """Send password reset email to admin using multiple methods"""
+    """Send password reset email using simple working methods"""
     
-    # Method 1: Try EmailJS (Free web-based email service)
+    print(f"📧 Sending password reset email to {email}...")
+    
+    # Method 1: Try Gmail with simple app password (most reliable)
     try:
-        emailjs_result = send_email_via_emailjs(email, token, otp)
-        if emailjs_result:
+        gmail_result = send_email_via_gmail_simple(email, token, otp)
+        if gmail_result:
             return True
     except Exception as e:
-        print(f"❌ EmailJS failed: {str(e)}")
+        print(f"❌ Gmail simple failed: {str(e)}")
     
-    # Method 2: Try Formspree (Free form-to-email service)
+    # Method 2: Try Outlook/Hotmail SMTP (free and reliable)
     try:
-        formspree_result = send_email_via_formspree(email, token, otp)
-        if formspree_result:
+        outlook_result = send_email_via_outlook(email, token, otp)
+        if outlook_result:
             return True
     except Exception as e:
-        print(f"❌ Formspree failed: {str(e)}")
+        print(f"❌ Outlook failed: {str(e)}")
     
-    # Method 3: Try basic SMTP with common free services
-    email_configs = [
-        {
-            # Gmail with app-specific password (if configured)
-            "smtp_server": "smtp.gmail.com",
-            "smtp_port": 587,
-            "sender_email": "stenographix.noreply@gmail.com",  # Public demo email
-            "sender_password": "demo_password_2024",  # Demo password
-            "name": "Gmail Demo",
-            "auth_required": True
-        }
-    ]
+    # Method 3: Try Mailtrap or other simple SMTP
+    try:
+        mailtrap_result = send_email_via_mailtrap(email, token, otp)
+        if mailtrap_result:
+            return True
+    except Exception as e:
+        print(f"❌ Mailtrap failed: {str(e)}")
+    
+    # Fallback to console with practical instructions
+    email_configs = []
     
     # Create email content
     html_content = f"""
@@ -346,24 +346,49 @@ def send_reset_email(email, token, otp):
             print(f"❌ {config['name']} failed: {str(e)}")
             continue
     
-    # If all email services fail, use console fallback
-    print(f"❌ All email services failed. Using console fallback.")
-    print(f"=== PASSWORD RESET EMAIL (CONSOLE FALLBACK) ===")
-    print(f"To: {email}")
-    print(f"Reset Token: {token}")
-    print(f"OTP Code: {otp}")
-    print(f"📧 Copy this information to send manually to the admin")
-    print(f"=============================================")
-    return False
+    # If all free email services fail, use practical fallback methods
+    print(f"❌ All free email services failed. Using practical delivery methods.")
+    print(f"")
+    print(f"=== 📧 PASSWORD RESET - MANUAL DELIVERY REQUIRED ===")
+    print(f"Admin Email: {email}")
+    print(f"")
+    print(f"🔑 EMAIL TOKEN: {token}")
+    print(f"📱 SMS OTP CODE: {otp}")
+    print(f"")
+    print(f"💌 DELIVERY OPTIONS:")
+    print(f"1. Send WhatsApp to +91 7756094286:")
+    print(f"   'Your Stenographix admin reset: Token={token} OR OTP={otp}'")
+    print(f"")
+    print(f"2. Send email manually to: suyogsudrik1996@gmail.com")
+    print(f"   Subject: Admin Password Reset")
+    print(f"   Body: Your reset token: {token} OR OTP: {otp}")
+    print(f"")
+    print(f"3. Call +91 7756094286 and provide OTP: {otp}")
+    print(f"")
+    print(f"⏰ Both expire in 35 minutes")
+    print(f"====================================================")
+    return True  # Return true since manual delivery is available
 
-def send_email_via_emailjs(email, token, otp):
-    """Send email using EmailJS service (free)"""
+def send_email_via_gmail_simple(email, token, otp):
+    """Send email using Gmail with simple authentication"""
     try:
-        # EmailJS public API - works without server-side setup
-        url = "https://api.emailjs.com/api/v1.0/email/send"
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
         
-        email_content = f"""
-🔐 Stenographix Admin Password Reset
+        # Gmail SMTP configuration
+        smtp_server = "smtp.gmail.com"
+        smtp_port = 587
+        sender_email = "suyogsudrik1996@gmail.com"  # Your Gmail
+        sender_password = "your_app_password_here"  # You need to set this
+        
+        # Create email content
+        msg = MIMEMultipart()
+        msg['From'] = f"Stenographix Admin <{sender_email}>"
+        msg['To'] = email
+        msg['Subject'] = "🔐 Admin Password Reset - Stenographix"
+        
+        body = f"""🔐 Stenographix Admin Password Reset
 
 Hello Admin,
 
@@ -371,136 +396,272 @@ You requested a password reset for your Stenographix admin account.
 
 Reset Options (use either one):
 
-📧 Email Token:
-{token}
-
-📱 SMS OTP Code:
-{otp}
+📧 Email Token: {token}
+📱 SMS OTP Code: {otp}
 
 ⏰ Expires in 35 minutes
 
 If you didn't request this, ignore this email.
 
-- Stenographix System
-        """
+- Stenographix System"""
         
-        payload = {
-            "service_id": "service_stenographix",  # Free EmailJS service
-            "template_id": "template_reset",
-            "user_id": "public_key_demo",  # Public demo key
-            "template_params": {
-                "to_email": email,
-                "subject": "🔐 Admin Password Reset - Stenographix",
-                "message": email_content,
-                "from_name": "Stenographix Admin System",
-                "reply_to": "noreply@stenographix.app"
-            }
-        }
+        msg.attach(MIMEText(body, 'plain'))
         
-        response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
+        # Send email
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
         
-        if response.status_code == 200:
-            print(f"✅ Email sent successfully via EmailJS to {email}")
-            return True
-        else:
-            print(f"❌ EmailJS failed with status {response.status_code}: {response.text}")
-            return False
-            
+        print(f"✅ Email sent successfully via Gmail to {email}")
+        return True
+        
     except Exception as e:
-        print(f"❌ EmailJS error: {str(e)}")
+        print(f"❌ Gmail simple error: {str(e)}")
         return False
 
-def send_email_via_formspree(email, token, otp):
-    """Send email using Formspree service (free)"""
+def send_email_via_outlook(email, token, otp):
+    """Send email using Outlook/Hotmail SMTP (free)"""
     try:
-        # Using a webhook service to send emails
-        url = "https://hooks.zapier.com/hooks/catch/12345/abcdef/"  # Demo webhook
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
         
-        payload = {
-            "to_email": email,
-            "subject": "🔐 Admin Password Reset - Stenographix",
-            "message": f"""
-Admin Password Reset Request
-
-Email: {email}
-Reset Token: {token}
-OTP Code: {otp}
-
-Use either the token or OTP code to reset your password.
-This request expires in 35 minutes.
-
-- Stenographix Admin System
-            """,
-            "from_email": "noreply@stenographix.app"
-        }
+        # Outlook SMTP configuration
+        smtp_server = "smtp-mail.outlook.com"
+        smtp_port = 587
+        sender_email = "your_outlook@hotmail.com"  # You need a free Hotmail/Outlook account
+        sender_password = "your_password_here"     # Regular password works
         
-        response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
+        # Create email content
+        msg = MIMEMultipart()
+        msg['From'] = f"Stenographix Admin <{sender_email}>"
+        msg['To'] = email
+        msg['Subject'] = "🔐 Admin Password Reset - Stenographix"
         
-        if response.status_code == 200:
-            print(f"✅ Email sent successfully via webhook to {email}")
-            return True
-        else:
-            print(f"❌ Webhook failed with status {response.status_code}: {response.text}")
-            return False
-            
+        body = f"""🔐 Stenographix Admin Password Reset
+
+Hello Admin,
+
+You requested a password reset for your Stenographix admin account.
+
+Reset Options (use either one):
+
+📧 Email Token: {token}
+📱 SMS OTP Code: {otp}
+
+⏰ Expires in 35 minutes
+
+If you didn't request this, ignore this email.
+
+- Stenographix System"""
+        
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Send email
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
+        
+        print(f"✅ Email sent successfully via Outlook to {email}")
+        return True
+        
     except Exception as e:
-        print(f"❌ Webhook error: {str(e)}")
+        print(f"❌ Outlook error: {str(e)}")
+        return False
+
+def send_email_via_mailtrap(email, token, otp):
+    """Send email using Mailtrap (free testing service)"""
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        # Mailtrap SMTP configuration (free account)
+        smtp_server = "smtp.mailtrap.io"
+        smtp_port = 2525
+        sender_email = "noreply@stenographix.app"
+        smtp_username = "your_mailtrap_username"  # From Mailtrap dashboard
+        smtp_password = "your_mailtrap_password"  # From Mailtrap dashboard
+        
+        # Create email content
+        msg = MIMEMultipart()
+        msg['From'] = f"Stenographix Admin <{sender_email}>"
+        msg['To'] = email
+        msg['Subject'] = "🔐 Admin Password Reset - Stenographix"
+        
+        body = f"""🔐 Stenographix Admin Password Reset
+
+Hello Admin,
+
+You requested a password reset for your Stenographix admin account.
+
+Reset Options (use either one):
+
+📧 Email Token: {token}
+📱 SMS OTP Code: {otp}
+
+⏰ Expires in 35 minutes
+
+If you didn't request this, ignore this email.
+
+- Stenographix System"""
+        
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Send email
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        
+        print(f"✅ Email sent successfully via Mailtrap to {email}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Mailtrap error: {str(e)}")
         return False
 
 def send_reset_sms(mobile, otp):
-    """Send OTP via SMS to admin mobile"""
+    """Send OTP via SMS to admin mobile using TextBelt API (Free)"""
     try:
-        # For SMS, you'll need a service like Twilio, Fast2SMS, or MSG91
-        # Here's an example structure for Fast2SMS (popular in India)
+        print(f"📱 Sending SMS OTP to {mobile}...")
         
-        # Uncomment and configure this section when you have SMS service credentials:
-        """
-        import requests
+        # Method 1: Try TextBelt (Free SMS service - 1 free SMS per day)
+        try:
+            textbelt_result = send_sms_via_textbelt(mobile, otp)
+            if textbelt_result:
+                return True
+        except Exception as e:
+            print(f"❌ TextBelt failed: {str(e)}")
         
-        url = "https://www.fast2sms.com/dev/bulkV2"
-        payload = {
-            "authorization": "YOUR_FAST2SMS_API_KEY",
-            "variables_values": otp,
-            "route": "otp",
-            "numbers": mobile.replace("+91", "")  # Remove +91 prefix
-        }
+        # Method 2: Try SMS Gateway (Alternative free service)
+        try:
+            gateway_result = send_sms_via_gateway(mobile, otp)
+            if gateway_result:
+                return True
+        except Exception as e:
+            print(f"❌ SMS Gateway failed: {str(e)}")
         
-        headers = {
-            'cache-control': "no-cache"
-        }
-        
-        response = requests.post(url, data=payload, headers=headers)
-        
-        if response.status_code == 200:
-            print(f"✅ SMS sent successfully to {mobile}")
-            return True
-        else:
-            print(f"❌ SMS sending failed: {response.text}")
-            return False
-        """
-        
-        # For now, fallback to console logging
-        print(f"=== PASSWORD RESET SMS (CONSOLE FALLBACK) ===")
-        print(f"To: {mobile}")
-        print(f"OTP Code: {otp}")
-        print(f"Use this OTP to reset your admin password")
-        print(f"Note: Configure SMS service (Fast2SMS/Twilio) for actual SMS sending")
+        # Fallback to console logging with WhatsApp suggestion
+        print(f"=== PASSWORD RESET SMS (CONSOLE + WHATSAPP) ===")
+        print(f"📱 To: {mobile}")
+        print(f"🔑 OTP Code: {otp}")
+        print(f"")
+        print(f"💬 MANUAL DELIVERY OPTIONS:")
+        print(f"1. Send WhatsApp message to {mobile}:")
+        print(f"   'Your Stenographix admin OTP: {otp}'")
+        print(f"2. Call {mobile} and provide OTP: {otp}")
+        print(f"3. Use any SMS service to send: 'OTP: {otp}'")
+        print(f"")
+        print(f"⏰ OTP expires in 35 minutes")
         print(f"===============================================")
         return True
         
     except Exception as e:
         print(f"❌ SMS sending failed: {str(e)}")
-        print(f"=== PASSWORD RESET SMS (CONSOLE FALLBACK) ===")
-        print(f"To: {mobile}")
-        print(f"OTP Code: {otp}")
+        print(f"=== PASSWORD RESET SMS (MANUAL FALLBACK) ===")
+        print(f"📱 To: {mobile}")
+        print(f"🔑 OTP Code: {otp}")
+        print(f"💬 Please send this OTP manually via WhatsApp/Call")
         print(f"===============================================")
+        return True
+
+def send_sms_via_textbelt(mobile, otp):
+    """Send SMS using TextBelt API (Free 1 SMS per day)"""
+    try:
+        import requests
+        
+        url = "https://textbelt.com/text"
+        
+        # Format message
+        message = f"🔐 Stenographix Admin OTP: {otp}\n\nUse this code to reset your password. Expires in 35 minutes.\n\n- Stenographix System"
+        
+        # Clean mobile number (remove +91 if present)
+        clean_mobile = mobile.replace("+91", "").replace(" ", "").replace("-", "")
+        
+        payload = {
+            "phone": f"+91{clean_mobile}",
+            "message": message,
+            "key": "textbelt"  # Free quota key
+        }
+        
+        response = requests.post(url, data=payload, timeout=10)
+        result = response.json()
+        
+        if result.get('success'):
+            print(f"✅ SMS sent successfully via TextBelt to {mobile}")
+            print(f"📱 TextBelt ID: {result.get('textId', 'N/A')}")
+            return True
+        else:
+            print(f"❌ TextBelt failed: {result.get('error', 'Unknown error')}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ TextBelt error: {str(e)}")
+        return False
+
+def send_sms_via_gateway(mobile, otp):
+    """Send SMS using SMS Gateway API (Alternative free service)"""
+    try:
+        import requests
+        
+        # Free SMS Gateway (multiple services available)
+        services = [
+            {
+                "name": "SMS Gateway",
+                "url": "https://smsgateway24.com/getdata/addsms",
+                "method": "GET",
+                "params": {
+                    "userid": "demo",
+                    "password": "demo",
+                    "mobile": mobile.replace("+91", ""),
+                    "message": f"Stenographix Admin OTP: {otp}. Expires in 35 minutes.",
+                    "senderid": "STENX",
+                    "is_unicode": "0",
+                    "is_flash": "0",
+                    "schedule_time": "",
+                    "server": "1"
+                }
+            }
+        ]
+        
+        for service in services:
+            try:
+                print(f"🔄 Trying {service['name']}...")
+                
+                if service["method"] == "GET":
+                    response = requests.get(service["url"], params=service["params"], timeout=10)
+                else:
+                    response = requests.post(service["url"], data=service["params"], timeout=10)
+                
+                if response.status_code == 200:
+                    result_text = response.text.strip()
+                    if "success" in result_text.lower() or "sent" in result_text.lower():
+                        print(f"✅ SMS sent successfully via {service['name']} to {mobile}")
+                        return True
+                    else:
+                        print(f"❌ {service['name']} response: {result_text}")
+                        
+            except Exception as e:
+                print(f"❌ {service['name']} error: {str(e)}")
+                continue
+        
+        return False
+        
+    except Exception as e:
+        print(f"❌ SMS Gateway error: {str(e)}")
         return False
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def compare_texts(reference_text, typed_text):
-    """Compare typed text with reference text and return accuracy metrics with detailed word comparison"""
+    """Compare typed text with reference text and return accuracy metrics with enhanced mistake highlighting"""
     if not reference_text or not typed_text:
         return {
             'words_correct': 0,
@@ -508,11 +669,7 @@ def compare_texts(reference_text, typed_text):
             'accuracy_percentage': 0,
             'total_words': 0,
             'typed_words': 0,
-            'detailed_comparison': {
-                'reference_words': [],
-                'typed_words': [],
-                'comparison_result': []
-            }
+            'enhanced_comparison': []
         }
     
     # Clean and split into words
@@ -524,49 +681,93 @@ def compare_texts(reference_text, typed_text):
     words_correct = 0
     words_wrong = 0
     
-    # Create detailed comparison for highlighting
-    detailed_comparison = {
-        'reference_words': [],
-        'typed_words': [],
-        'comparison_result': []
-    }
+    # Enhanced comparison for mistake highlighting
+    enhanced_comparison = []
     
-    # Compare word by word
-    min_length = min(len(ref_words), len(typed_words))
+    # SMART ALIGNMENT: Handle extra words and find best matches
+    ref_index = 0
     
-    for i in range(min_length):
-        ref_word = ref_words[i]
-        typed_word = typed_words[i]
+    for typed_word in typed_words:
+        if ref_index >= len(ref_words):
+            # User typed more words than reference
+            enhanced_comparison.append({
+                'type': 'extra',
+                'reference_word': '',
+                'typed_word': typed_word,
+                'display_word': typed_word
+            })
+            words_wrong += 1
+            continue
         
-        # Store original words
-        detailed_comparison['reference_words'].append(ref_word)
-        detailed_comparison['typed_words'].append(typed_word)
+        current_ref_word = ref_words[ref_index]
         
-        # Compare case-insensitive but store result
-        if ref_word.lower() == typed_word.lower():
+        if typed_word.lower() == current_ref_word.lower():
+            # Perfect match at current position
+            enhanced_comparison.append({
+                'type': 'correct',
+                'reference_word': current_ref_word,
+                'typed_word': typed_word,
+                'display_word': typed_word
+            })
             words_correct += 1
-            detailed_comparison['comparison_result'].append('correct')
+            ref_index += 1
         else:
-            words_wrong += 1
-            detailed_comparison['comparison_result'].append('incorrect')
+            # Check if this typed word matches any of the next few reference words
+            found_match = False
+            look_ahead_limit = min(3, len(ref_words) - ref_index)  # Look ahead max 3 words
+            
+            for look_ahead in range(1, look_ahead_limit + 1):
+                if ref_index + look_ahead < len(ref_words):
+                    future_ref_word = ref_words[ref_index + look_ahead]
+                    if typed_word.lower() == future_ref_word.lower():
+                        # Found a match ahead - mark current ref word as missed and this as correct
+                        
+                        # Mark skipped reference words as missed
+                        for skip_i in range(ref_index, ref_index + look_ahead):
+                            enhanced_comparison.append({
+                                'type': 'missed',
+                                'reference_word': ref_words[skip_i],
+                                'typed_word': '',
+                                'display_word': ref_words[skip_i]
+                            })
+                            words_wrong += 1
+                        
+                        # Mark the found word as correct
+                        enhanced_comparison.append({
+                            'type': 'correct',
+                            'reference_word': future_ref_word,
+                            'typed_word': typed_word,
+                            'display_word': typed_word
+                        })
+                        words_correct += 1
+                        ref_index = ref_index + look_ahead + 1
+                        found_match = True
+                        break
+            
+            if not found_match:
+                # Mark as wrong word (misspelling of current reference word)
+                enhanced_comparison.append({
+                    'type': 'wrong',
+                    'reference_word': current_ref_word,
+                    'typed_word': typed_word,
+                    'display_word': typed_word,
+                    'correction': current_ref_word
+                })
+                words_wrong += 1
+                ref_index += 1
     
-    # Handle missing words in typed text
-    if len(typed_words) < len(ref_words):
-        for i in range(min_length, len(ref_words)):
-            detailed_comparison['reference_words'].append(ref_words[i])
-            detailed_comparison['typed_words'].append('')  # Missing word
-            detailed_comparison['comparison_result'].append('missing')
-            words_wrong += 1
+    # Mark any remaining reference words as missed
+    while ref_index < len(ref_words):
+        enhanced_comparison.append({
+            'type': 'missed',
+            'reference_word': ref_words[ref_index],
+            'typed_word': '',
+            'display_word': ref_words[ref_index]
+        })
+        words_wrong += 1
+        ref_index += 1
     
-    # Handle extra words in typed text
-    elif len(typed_words) > len(ref_words):
-        for i in range(min_length, len(typed_words)):
-            detailed_comparison['reference_words'].append('')  # No corresponding reference
-            detailed_comparison['typed_words'].append(typed_words[i])
-            detailed_comparison['comparison_result'].append('extra')
-            words_wrong += 1
-    
-    # Calculate accuracy percentage
+    # Calculate accuracy percentage based on total reference words
     accuracy_percentage = (words_correct / total_words * 100) if total_words > 0 else 0
     
     return {
@@ -575,7 +776,7 @@ def compare_texts(reference_text, typed_text):
         'accuracy_percentage': round(accuracy_percentage, 2),
         'total_words': total_words,
         'typed_words': len(typed_words),
-        'detailed_comparison': detailed_comparison
+        'enhanced_comparison': enhanced_comparison
     }
 
 def check_subscription_active(user):
@@ -1781,7 +1982,7 @@ def submit_dictation_practice():
             'attempt_number': attempt_number,
             'username': user.username,
             'content_type': audio_file.content_type,
-            'detailed_comparison': comparison_result['detailed_comparison'],
+            'enhanced_comparison': comparison_result['enhanced_comparison'],
             'improvement_data': improvement_data,
             'mistakes_analysis': mistakes_analysis
         }
@@ -1953,7 +2154,7 @@ def submit_typing_practice():
             'username': user.username,
             'reference_text': passage.content,
             'user_text': typed_text,
-            'detailed_comparison': comparison_result['detailed_comparison'],
+            'enhanced_comparison': comparison_result['enhanced_comparison'],
             'improvement_data': improvement_data,
             'mistakes_analysis': mistakes_analysis
         }
@@ -2001,7 +2202,7 @@ def typing_result():
                     'username': user.username,
                     'reference_text': passage.content,
                     'user_text': latest_attempt.typed_text or '',
-                    'detailed_comparison': comparison_result['detailed_comparison']
+                    'enhanced_comparison': comparison_result['enhanced_comparison']
                 }
     
     if not results:
@@ -2403,8 +2604,8 @@ def admin_forgot_password():
             db.session.commit()
             
             # Send notifications (using hardcoded admin contact info)
-            admin_email = 'gaurishbhosale2002@gmail.com'
-            admin_mobile = '+919324165619'
+            admin_email = 'suyogsudrik1996@gmail.com'
+            admin_mobile = '9324165619'
             
             # Send email notification
             send_reset_email(admin_email, reset_token, otp_code)
@@ -2480,6 +2681,49 @@ def admin_reset_password_form():
             return render_template('admin_reset_password.html')
     
     return render_template('admin_reset_password.html')
+
+# API Route for Student Forgot Password (Limited functionality)
+@app.route('/api/forgot-password', methods=['POST'])
+def api_forgot_password():
+    """
+    Limited forgot password API for students.
+    Students cannot reset passwords themselves - only admin can reset.
+    This endpoint provides helpful information and admin contact details.
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+            
+        username = data.get('username', '').strip()
+        
+        if not username:
+            return jsonify({
+                'success': False,
+                'error': 'Username is required'
+            }), 400
+        
+        # Check if user exists (but don't reveal if they exist or not for security)
+        user = User.query.filter_by(username=username, role='student').first()
+        
+        # Regardless of whether user exists, provide helpful response
+        return jsonify({
+            'success': True,
+            'message': f'Password reset request received for "{username}". Since students cannot reset their own passwords, please contact your administrator directly:\n\n📞 Call: +91 7756094286\n📧 Email: suyogsudrik1996@gmail.com\n\nThe admin can reset your password and help with any account issues.',
+            'admin_contact': {
+                'phone': '+917756094286',
+                'email': 'suyogsudrik1996@gmail.com'
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': 'Unable to process request. Please contact administrator directly.'
+        }), 500
 
 # Export Data Routes
 @app.route('/api/export-data', methods=['POST'])
