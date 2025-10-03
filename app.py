@@ -664,122 +664,30 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def compare_texts(reference_text, typed_text):
-    """Compare typed text with reference text and return accuracy metrics with enhanced mistake highlighting"""
-    if not reference_text or not typed_text:
-        return {
-            'words_correct': 0,
-            'words_wrong': 0,
-            'accuracy_percentage': 0,
-            'total_words': 0,
-            'typed_words': 0,
-            'enhanced_comparison': []
-        }
+    """
+    Enhanced text comparison using LCS strategy with improved error detection.
     
-    # Clean and split into words
-    ref_words = reference_text.split()
-    typed_words = typed_text.split()
+    This function addresses the issue where correctly typed words like "However..."
+    were incorrectly marked as errors by using the Longest Common Subsequence algorithm
+    for more accurate text alignment and comparison.
+    """
+    # Import the enhanced comparison function
+    from lcs_text_comparison import enhanced_compare_texts
     
-    # Calculate word-level accuracy
-    total_words = len(ref_words)
-    words_correct = 0
-    words_wrong = 0
+    # Use the enhanced LCS-based comparison
+    result = enhanced_compare_texts(reference_text, typed_text)
     
-    # Enhanced comparison for mistake highlighting
-    enhanced_comparison = []
-    
-    # SMART ALIGNMENT: Handle extra words and find best matches
-    ref_index = 0
-    
-    for typed_word in typed_words:
-        if ref_index >= len(ref_words):
-            # User typed more words than reference
-            enhanced_comparison.append({
-                'type': 'extra',
-                'reference_word': '',
-                'typed_word': typed_word,
-                'display_word': typed_word
-            })
-            words_wrong += 1
-            continue
-        
-        current_ref_word = ref_words[ref_index]
-        
-        if typed_word.lower() == current_ref_word.lower():
-            # Perfect match at current position
-            enhanced_comparison.append({
-                'type': 'correct',
-                'reference_word': current_ref_word,
-                'typed_word': typed_word,
-                'display_word': typed_word
-            })
-            words_correct += 1
-            ref_index += 1
-        else:
-            # Check if this typed word matches any of the next few reference words
-            found_match = False
-            look_ahead_limit = min(3, len(ref_words) - ref_index)  # Look ahead max 3 words
-            
-            for look_ahead in range(1, look_ahead_limit + 1):
-                if ref_index + look_ahead < len(ref_words):
-                    future_ref_word = ref_words[ref_index + look_ahead]
-                    if typed_word.lower() == future_ref_word.lower():
-                        # Found a match ahead - mark current ref word as missed and this as correct
-                        
-                        # Mark skipped reference words as missed
-                        for skip_i in range(ref_index, ref_index + look_ahead):
-                            enhanced_comparison.append({
-                                'type': 'missed',
-                                'reference_word': ref_words[skip_i],
-                                'typed_word': '',
-                                'display_word': ref_words[skip_i]
-                            })
-                            words_wrong += 1
-                        
-                        # Mark the found word as correct
-                        enhanced_comparison.append({
-                            'type': 'correct',
-                            'reference_word': future_ref_word,
-                            'typed_word': typed_word,
-                            'display_word': typed_word
-                        })
-                        words_correct += 1
-                        ref_index = ref_index + look_ahead + 1
-                        found_match = True
-                        break
-            
-            if not found_match:
-                # Mark as wrong word (misspelling of current reference word)
-                enhanced_comparison.append({
-                    'type': 'wrong',
-                    'reference_word': current_ref_word,
-                    'typed_word': typed_word,
-                    'display_word': typed_word,
-                    'correction': current_ref_word
-                })
-                words_wrong += 1
-                ref_index += 1
-    
-    # Mark any remaining reference words as missed
-    while ref_index < len(ref_words):
-        enhanced_comparison.append({
-            'type': 'missed',
-            'reference_word': ref_words[ref_index],
-            'typed_word': '',
-            'display_word': ref_words[ref_index]
-        })
-        words_wrong += 1
-        ref_index += 1
-    
-    # Calculate accuracy percentage based on total reference words
-    accuracy_percentage = (words_correct / total_words * 100) if total_words > 0 else 0
-    
+    # Return in the format expected by the existing application
     return {
-        'words_correct': words_correct,
-        'words_wrong': words_wrong,
-        'accuracy_percentage': round(accuracy_percentage, 2),
-        'total_words': total_words,
-        'typed_words': len(typed_words),
-        'enhanced_comparison': enhanced_comparison
+        'words_correct': result['words_correct'],
+        'words_wrong': result['words_wrong'],
+        'accuracy_percentage': result['accuracy_percentage'],
+        'total_words': result['total_words'],
+        'typed_words': result['typed_words'],
+        'enhanced_comparison': result['enhanced_comparison'],
+        'lcs_analysis': result.get('lcs_analysis', {}),
+        'punctuation_errors': result.get('punctuation_errors', []),
+        'error_summary': result.get('error_summary', {})
     }
 
 def check_subscription_active(user):
