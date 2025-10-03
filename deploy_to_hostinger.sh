@@ -6,9 +6,9 @@
 set -e  # Exit on any error
 
 # Configuration - UPDATE THESE VALUES
-VPS_IP="your_vps_ip_here"          # Your VPS IP address
+VPS_IP="72.60.202.28"               # Your VPS IP address
 VPS_USER="root"                     # Your VPS username (usually root)
-DOMAIN="yourdomain.com"             # Your domain name
+DOMAIN="stenographix.suyogcodes.com" # Your domain name
 APP_DIR="/var/www/dictation-app"    # Application directory on VPS
 
 echo "🚀 Deploying Flask Dictation App to Hostinger VPS (SQLite)"
