@@ -1,11 +1,32 @@
+# Core Flask Dependencies
 Flask==2.3.3
 Werkzeug==2.3.7
 Flask-SQLAlchemy==3.0.5
+python-dotenv==1.0.0
+
+# Database Support
+PyMySQL==1.1.0
+SQLAlchemy==2.0.23
+
+# Production Server
+gunicorn==21.2.0
+
+# Date/Time Handling
 python-dateutil==2.8.2
+
+# File Processing
 openpyxl==3.1.2
 reportlab==4.0.4
-gunicorn==21.2.0
-python-dotenv==1.0.0
 python-docx==0.8.11
 odfpy==1.4.1
+
+# HTTP Requests
 requests==2.31.0
+
+# Security & Validation
+cryptography==41.0.7
+bcrypt==4.1.2
+
+# Optional: Performance & Caching
+# redis==5.0.1
+# Flask-Caching==2.1.0

@@ -101,3 +101,19 @@ typing_passages/*.txt
 # Backup files
 *.bak
 *.backup
+
+# Production deployment
+dictation_app_deploy.zip
+production.db
+*.db-journal
+
+# Hostinger specific
+.htaccess.backup
+cpanel_logs/
+error_log
+access_log
+
+# Security
+private_key.pem
+certificate.crt
+ssl/
