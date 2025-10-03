@@ -355,15 +355,18 @@ def send_reset_email(email, token, otp):
     print(f"🔑 EMAIL TOKEN: {token}")
     print(f"📱 SMS OTP CODE: {otp}")
     print(f"")
+    admin_phone = app.config.get('ADMIN_PHONE', '+1234567890')
+    admin_email = app.config.get('ADMIN_EMAIL', 'admin@localhost')
+    
     print(f"💌 DELIVERY OPTIONS:")
-    print(f"1. Send WhatsApp to +91 7756094286:")
-    print(f"   'Your Stenographix admin reset: Token={token} OR OTP={otp}'")
+    print(f"1. Send WhatsApp to {admin_phone}:")
+    print(f"   'Your admin reset: Token={token} OR OTP={otp}'")
     print(f"")
-    print(f"2. Send email manually to: suyogsudrik1996@gmail.com")
+    print(f"2. Send email manually to: {admin_email}")
     print(f"   Subject: Admin Password Reset")
     print(f"   Body: Your reset token: {token} OR OTP: {otp}")
     print(f"")
-    print(f"3. Call +91 7756094286 and provide OTP: {otp}")
+    print(f"3. Call {admin_phone} and provide OTP: {otp}")
     print(f"")
     print(f"⏰ Both expire in 35 minutes")
     print(f"====================================================")
@@ -376,11 +379,11 @@ def send_email_via_gmail_simple(email, token, otp):
         from email.mime.text import MIMEText
         from email.mime.multipart import MIMEMultipart
         
-        # Gmail SMTP configuration
-        smtp_server = "smtp.gmail.com"
-        smtp_port = 587
-        sender_email = "suyogsudrik1996@gmail.com"  # Your Gmail
-        sender_password = "your_app_password_here"  # You need to set this
+        # SMTP configuration from environment
+        smtp_server = app.config.get('MAIL_SERVER', 'localhost')
+        smtp_port = app.config.get('MAIL_PORT', 587)
+        sender_email = app.config.get('MAIL_USERNAME', 'noreply@localhost')
+        sender_password = app.config.get('MAIL_PASSWORD', '')
         
         # Create email content
         msg = MIMEMultipart()
@@ -2518,11 +2521,11 @@ def get_user_password(user_id):
         # Enhanced demo password mapping with more patterns
         demo_passwords = {
             'student1': 'student123',
-            'student2': 'student123', 
+            'student2': 'student123',
             'student3': 'student123',
             'demo': 'demo123',
             'test': 'test123',
-            'admin': 'admin123'
+            app.config.get('ADMIN_USERNAME', 'admin'): app.config.get('ADMIN_PASSWORD', 'admin123')
         }
         
         # Check if it's a known demo account
@@ -2603,9 +2606,9 @@ def admin_forgot_password():
             db.session.add(reset_request)
             db.session.commit()
             
-            # Send notifications (using hardcoded admin contact info)
-            admin_email = 'suyogsudrik1996@gmail.com'
-            admin_mobile = '9324165619'
+            # Send notifications (using configured admin contact info)
+            admin_email = app.config.get('ADMIN_EMAIL', 'admin@localhost')
+            admin_mobile = app.config.get('ADMIN_PHONE', '+1234567890')
             
             # Send email notification
             send_reset_email(admin_email, reset_token, otp_code)
@@ -2712,10 +2715,10 @@ def api_forgot_password():
         # Regardless of whether user exists, provide helpful response
         return jsonify({
             'success': True,
-            'message': f'Password reset request received for "{username}". Since students cannot reset their own passwords, please contact your administrator directly:\n\n📞 Call: +91 7756094286\n📧 Email: suyogsudrik1996@gmail.com\n\nThe admin can reset your password and help with any account issues.',
+            'message': f'Password reset request received for "{username}". Since students cannot reset their own passwords, please contact your administrator directly:\n\n📞 Call: {app.config.get("ADMIN_PHONE", "+1234567890")}\n📧 Email: {app.config.get("ADMIN_EMAIL", "admin@localhost")}\n\nThe admin can reset your password and help with any account issues.',
             'admin_contact': {
-                'phone': '+917756094286',
-                'email': 'suyogsudrik1996@gmail.com'
+                'phone': app.config.get('ADMIN_PHONE', '+1234567890'),
+                'email': app.config.get('ADMIN_EMAIL', 'admin@localhost')
             }
         })
         
@@ -3222,8 +3225,8 @@ def ensure_admin_accounts_startup():
             
             if not admin_exists:
                 admin_user = User(
-                    username='admin',
-                    password_hash=hash_password('admin123'),
+                    username=app.config.get('ADMIN_USERNAME', 'admin'),
+                    password_hash=hash_password(app.config.get('ADMIN_PASSWORD', 'admin123')),
                     role='admin',
                     is_active=True,
                     is_locked=False,

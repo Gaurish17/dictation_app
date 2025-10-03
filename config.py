@@ -11,6 +11,19 @@ class Config:
     TYPING_PASSAGES_FOLDER = os.environ.get('TYPING_PASSAGES_FOLDER', 'typing_passages')
     ALLOWED_EXTENSIONS = {'mp3', 'wav', 'txt'}
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB max file size
+    
+    # Admin contact configuration
+    ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@localhost')
+    ADMIN_PHONE = os.environ.get('ADMIN_PHONE', '+1234567890')
+    ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
+    
+    # Email configuration
+    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'localhost')
+    MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
+    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME', '')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '')
 
 class DevelopmentConfig(Config):
     """Development configuration."""
