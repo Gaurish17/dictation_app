@@ -4,8 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dictation Practice - {{ audio.title }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
+        <!-- Preconnect to CDN for faster resource loading -->
+
+        <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+        <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+
+        
+
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <style>
+
+            /* Critical CSS to prevent FOUC */
+
+            svg {
+
+                width: 1.5rem;
+
+                height: 1.5rem;
+
+                display: inline-block;
+
+                vertical-align: middle;
+
+            }
+
+            
+
+            body {
+
+                margin: 0;
+
+                padding: 0;
+
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+            }
+
+            
+
+            * {
+
+                box-sizing: border-box;
+
+            }
+
+            
+
+    
         /* Text size classes */
         .text-xs-custom { font-size: 10px !important; }
         .text-sm-custom { font-size: 12px !important; }
@@ -524,7 +571,8 @@
     function submitPractice() {
         const typedText = document.getElementById('typingArea').value;
         const practiceEndTime = new Date();
-        const totalTime = Math.floor((practiceEndTime - practiceStartTime) / 1000);
+        // Calculate time from when typing started, not from practice start
+        const totalTime = typingStartTime ? Math.floor((practiceEndTime - typingStartTime) / 1000) : 0;
         
         // Disable submit button to prevent double submission
         const submitBtn = document.getElementById('submitBtn');

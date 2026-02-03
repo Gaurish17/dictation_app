@@ -4,7 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reports & Analytics - Admin Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+        <!-- Preconnect to CDN for faster resource loading -->
+
+        <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+        <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+
+        
+
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <style>
+
+            /* Critical CSS to prevent FOUC */
+
+            svg {
+
+                width: 1.5rem;
+
+                height: 1.5rem;
+
+                display: inline-block;
+
+                vertical-align: middle;
+
+            }
+
+            
+
+            body {
+
+                margin: 0;
+
+                padding: 0;
+
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+            }
+
+            
+
+            * {
+
+                box-sizing: border-box;
+
+            }
+
+            
+
+    
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Navigation Bar -->
@@ -12,11 +60,11 @@
         <div class="w-full px-2 py-4">
             <div class="flex justify-between items-center">
                 <div class="flex items-center space-x-4">
-                    <a href="{{ url_for('admin_dashboard') }}" class="text-blue-600 hover:text-blue-800 transition-colors duration-300 font-medium">
-                        <svg class="h-6 w-6 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <a href="{{ url_for('admin_dashboard') }}" class="inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-medium rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                        <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
-                        Back to Dashboard
+                        ← Back to Dashboard
                     </a>
                     <h1 class="text-3xl font-bold text-gray-800">📋 User Submissions</h1>
                 </div>
@@ -129,7 +177,7 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {% if performance.last_activity %}
-                                            {{ performance.last_activity.strftime('%m/%d %H:%M') }}
+                                            {{ performance.last_activity|format_datetime('%d-%m-%Y %I:%M %p') }}
                                         {% else %}
                                             <span class="text-gray-400">Never</span>
                                         {% endif %}
@@ -177,18 +225,18 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            {% for attempt in recent_dictation %}
+                            {% for attempt, username, audio_title in recent_dictation %}
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center">
                                             <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                                                <span class="text-blue-600 font-semibold text-sm">{{ attempt.user_id }}</span>
+                                                <span class="text-blue-600 font-semibold text-sm">{{ username[0].upper() }}</span>
                                             </div>
-                                            <span class="text-sm font-medium text-gray-900">User {{ attempt.user_id }}</span>
+                                            <span class="text-sm font-medium text-gray-900">{{ username }}</span>
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        Audio {{ attempt.audio_id }}
+                                        {{ audio_title }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -220,7 +268,7 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {% if attempt.submitted_at %}
-                                            {{ attempt.submitted_at.strftime('%m/%d %H:%M') }}
+                                            {{ attempt.submitted_at|format_datetime('%d-%m-%Y %I:%M %p') }}
                                         {% else %}
                                             N/A
                                         {% endif %}
@@ -269,18 +317,18 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            {% for attempt in recent_typing %}
+                            {% for attempt, username, passage_title in recent_typing %}
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center">
                                             <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                                                <span class="text-green-600 font-semibold text-sm">{{ attempt.user_id }}</span>
+                                                <span class="text-green-600 font-semibold text-sm">{{ username[0].upper() }}</span>
                                             </div>
-                                            <span class="text-sm font-medium text-gray-900">User {{ attempt.user_id }}</span>
+                                            <span class="text-sm font-medium text-gray-900">{{ username }}</span>
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        Passage {{ attempt.passage_id }}
+                                        {{ passage_title }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -317,7 +365,7 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {% if attempt.submitted_at %}
-                                            {{ attempt.submitted_at.strftime('%m/%d %H:%M') }}
+                                            {{ attempt.submitted_at|format_datetime('%d-%m-%Y %I:%M %p') }}
                                         {% else %}
                                             N/A
                                         {% endif %}
@@ -345,6 +393,13 @@
             // Add smooth scrolling and better interactions
             console.log('Reports page loaded');
         });
+
+        // Logout confirmation function
+        function confirmLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '{{ url_for("logout") }}';
+            }
+        }
     </script>
 </body>
 </html>

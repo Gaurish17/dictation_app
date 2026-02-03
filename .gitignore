@@ -117,3 +117,20 @@ access_log
 private_key.pem
 certificate.crt
 ssl/
+*.pem
+*.key
+*.crt
+
+# Deployment scripts with credentials
+quick_fix_deploy.sh
+emergency_deploy.sh
+stenographix.service
+
+# Server-specific files
+CRITICAL_SERVER_DOWN.txt
+HOSTINGER_RESTART_GUIDE.txt
+start_app.sh
+
+# Cookies/sessions
+cookies.txt
+/tmp/cookies.txt

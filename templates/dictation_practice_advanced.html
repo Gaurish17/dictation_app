@@ -4,8 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Dictation Practice - Audio Dictation Practice</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
+        <!-- Preconnect to CDN for faster resource loading -->
+
+        <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+        <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+
+        
+
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <style>
+
+            /* Critical CSS to prevent FOUC */
+
+            svg {
+
+                width: 1.5rem;
+
+                height: 1.5rem;
+
+                display: inline-block;
+
+                vertical-align: middle;
+
+            }
+
+            
+
+            body {
+
+                margin: 0;
+
+                padding: 0;
+
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+            }
+
+            
+
+            * {
+
+                box-sizing: border-box;
+
+            }
+
+            
+
+    
         .timer-warning { animation: pulse 1s infinite; }
         .typing-area { min-height: 200px; }
         .word-correct { background-color: #dcfce7; color: #166534; }
@@ -79,37 +126,14 @@
                             </div>
                         </div>
 
-                        <!-- Practice Settings -->
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Practice Mode</label>
-                                <select id="practiceMode" class="w-full border border-gray-300 rounded px-3 py-2">
-                                    <option value="unlimited">Unlimited Time</option>
-                                    <option value="timed">Timed Practice (Audio + 30s)</option>
-                                    <option value="strict">Strict Mode (Audio Only)</option>
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Auto-Submit</label>
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="autoSubmit" class="rounded border-gray-300" checked>
-                                    <label for="autoSubmit" class="ml-2 text-sm text-gray-600">Enable auto-submit when time ends</label>
-                                </div>
-                                <div class="mt-1 text-xs text-gray-500" id="autoSubmitInfo">
-                                    • Unlimited Mode: No auto-submit<br>
-                                    • Timed Mode: Auto-submit 3 seconds after audio + 30s<br>
-                                    • Strict Mode: Auto-submit 3 seconds after audio ends
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Real-time Checking</label>
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="realTimeCheck" class="rounded border-gray-300">
-                                    <label for="realTimeCheck" class="ml-2 text-sm text-gray-600">Highlight words as you type</label>
-                                </div>
-                            </div>
+                        <!-- Practice Timer Info -->
+                        <div class="bg-yellow-50 border border-yellow-200 rounded p-4 mb-4">
+                            <p class="text-yellow-800 text-sm font-medium">
+                                ⏱️ <strong>Practice Time: 30 Minutes</strong>
+                            </p>
+                            <p class="text-yellow-700 text-xs mt-1">
+                                You have exactly 30 minutes to complete this dictation. The practice will auto-submit when time expires.
+                            </p>
                         </div>
 
                         <!-- Start/Stop Buttons -->
@@ -157,8 +181,8 @@
                         <!-- Instructions -->
                         <div id="instructions" class="bg-blue-50 border border-blue-200 rounded p-4 mb-4">
                             <p class="text-blue-800 text-sm">
-                                🎧 <strong>Instructions:</strong> Listen to the audio and type exactly what you hear. 
-                                Click "Start Practice" to begin the timer and enable typing.
+                                🎧 <strong>Instructions:</strong> Listen to the audio and type exactly what you hear.
+                                Click "Start Practice" to begin the 30-minute timer and enable typing.
                             </p>
                         </div>
 
@@ -208,7 +232,7 @@
         let isPracticeActive = false;
         let audioPlayer = null;
         let autoSubmitTimeout = null;
-        let AUDIO_DURATION = 60; // Default 60 seconds - will be updated when audio metadata is available
+        const FIXED_TIME_LIMIT = 1800; // Fixed 30 minutes (1800 seconds) for all dictation practice
 
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -223,14 +247,6 @@
             
             // Typing area events
             typingArea.addEventListener('input', handleTypingInput);
-            typingArea.addEventListener('keydown', handleKeyDown);
-            
-            // Practice mode change
-            document.getElementById('practiceMode').addEventListener('change', updatePracticeMode);
-            
-            // Real-time checking toggle
-            document.getElementById('realTimeCheck').addEventListener('change', toggleRealTimeCheck);
-            
             // Audio player error handling
             audioPlayer.addEventListener('error', function(e) {
                 console.error('Audio error:', e);
@@ -239,56 +255,13 @@
             
             // Audio player load success
             audioPlayer.addEventListener('loadedmetadata', function() {
-                console.log('Audio loaded successfully, duration:', audioPlayer.duration);
+                console.log('Audio loaded successfully');
                 document.getElementById('audioError').style.display = 'none';
-                
-                // Update the actual audio duration
-                if (audioPlayer.duration && !isNaN(audioPlayer.duration)) {
-                    AUDIO_DURATION = Math.ceil(audioPlayer.duration);
-                    console.log('Updated AUDIO_DURATION to:', AUDIO_DURATION);
-                    
-                    // Update the duration display if available
-                    const durationElement = document.querySelector('p.text-sm.text-gray-500');
-                    if (durationElement && durationElement.textContent.includes('Duration:')) {
-                        durationElement.textContent = `Duration: ${AUDIO_DURATION}s`;
-                    }
-                }
             });
             
             // Check audio file accessibility on page load
             audioPlayer.addEventListener('canplay', function() {
                 console.log('Audio is ready to play');
-            });
-            
-            // Auto-submit when audio ends in strict mode
-            audioPlayer.addEventListener('ended', function() {
-                console.log('Audio ended');
-                const mode = document.getElementById('practiceMode').value;
-                
-                if (mode === 'strict' && isPracticeActive) {
-                    console.log('Strict mode: Audio ended, triggering auto-submit');
-                    
-                    // Show warning message
-                    const timeWarning = document.getElementById('timeWarning');
-                    const warningMessage = document.getElementById('warningMessage');
-                    timeWarning.style.display = 'block';
-                    warningMessage.textContent = 'Audio finished! Auto-submitting in 3 seconds...';
-                    
-                    // Auto-submit after 3 seconds if enabled
-                    if (document.getElementById('autoSubmit').checked) {
-                        setTimeout(function() {
-                            if (isPracticeActive) {
-                                console.log('Auto-submitting practice results');
-                                submitPractice();
-                            }
-                        }, 3000);
-                    } else {
-                        // Just stop the practice if auto-submit is disabled
-                        isPracticeActive = false;
-                        document.getElementById('typingArea').disabled = true;
-                        warningMessage.textContent = 'Audio finished! Please submit your results manually.';
-                    }
-                }
             });
         });
 
@@ -299,11 +272,8 @@
             // Enable typing area
             const typingArea = document.getElementById('typingArea');
             typingArea.disabled = false;
-            typingArea.placeholder = "Start typing what you hear...";
+            typingArea.placeholder = "Start typing what you hear... (30 minutes remaining)";
             typingArea.focus();
-            
-            // Disable all settings during practice
-            disableSettings(true);
             
             // Update UI
             document.getElementById('startPractice').style.display = 'none';
@@ -317,12 +287,11 @@
             // Start timer
             startTimer();
             
-            // Set up practice mode
-            setupPracticeMode();
+            // Set up fixed 30-minute timer with auto-submit
+            setupAutoSubmit();
             
-            // Always start audio when practice begins (all modes)
+            // Always start audio when practice begins
             console.log('Starting practice - attempting to play audio');
-            const mode = document.getElementById('practiceMode').value;
             
             // Reset audio to beginning
             audioPlayer.currentTime = 0;
@@ -385,7 +354,8 @@
         function submitPractice() {
             const typedText = document.getElementById('typingArea').value;
             const practiceEndTime = new Date();
-            const totalTime = Math.floor((practiceEndTime - practiceStartTime) / 1000);
+            // Calculate time from when practice started (typing enabled)
+            const totalTime = practiceStartTime ? Math.floor((practiceEndTime - practiceStartTime) / 1000) : 0;
             
             // Submit to server
             const form = document.createElement('form');
@@ -396,7 +366,7 @@
                 'audio_id': '{{ audio.id }}',
                 'transcription': typedText,
                 'time_taken': totalTime,
-                'practice_mode': document.getElementById('practiceMode').value
+                'practice_mode': 'fixed_30min'
             };
             
             Object.keys(fields).forEach(key => {
@@ -426,57 +396,42 @@
             }, 1000);
         }
 
-        function setupPracticeMode() {
-            const mode = document.getElementById('practiceMode').value;
-            
-            if (mode === 'timed') {
-                practiceTimeLimit = AUDIO_DURATION + 30; // Audio duration + 30 seconds
-                setupAutoSubmit();
-            } else if (mode === 'strict') {
-                practiceTimeLimit = AUDIO_DURATION;
-                setupAutoSubmit();
-            } else {
-                practiceTimeLimit = null;
-            }
-        }
-
         function setupAutoSubmit() {
-            if (practiceTimeLimit) {
-                autoSubmitTimeout = setTimeout(function() {
-                    if (isPracticeActive) {
-                        document.getElementById('timeWarning').style.display = 'block';
-                        document.getElementById('warningMessage').textContent = 'Time is up! Auto-submitting in 3 seconds...';
-                        
-                        // Auto-submit after 3 seconds if enabled
-                        if (document.getElementById('autoSubmit').checked) {
-                            setTimeout(function() {
-                                if (isPracticeActive) {
-                                    submitPractice();
-                                }
-                            }, 3000);
-                        } else {
-                            // Just stop the practice if auto-submit is disabled
-                            isPracticeActive = false;
-                            document.getElementById('typingArea').disabled = true;
-                            audioPlayer.pause();
-                            document.getElementById('warningMessage').textContent = 'Time is up! Please submit your results.';
+            // Set fixed 30-minute timer
+            practiceTimeLimit = FIXED_TIME_LIMIT;
+            
+            autoSubmitTimeout = setTimeout(function() {
+                if (isPracticeActive) {
+                    document.getElementById('timeWarning').style.display = 'block';
+                    document.getElementById('warningMessage').textContent = '30 minutes completed! Auto-submitting in 3 seconds...';
+                    
+                    // Auto-submit after 3 seconds
+                    setTimeout(function() {
+                        if (isPracticeActive) {
+                            submitPractice();
                         }
-                    }
-                }, practiceTimeLimit * 1000);
-            }
+                    }, 3000);
+                }
+            }, FIXED_TIME_LIMIT * 1000);
         }
 
         function checkTimeWarnings(elapsed) {
-            if (practiceTimeLimit) {
-                const remaining = practiceTimeLimit - elapsed;
-                
-                if (remaining <= 10 && remaining > 0) {
-                    document.getElementById('timeWarning').style.display = 'block';
-                    document.getElementById('warningMessage').textContent = remaining + ' seconds remaining!';
-                } else if (remaining <= 0) {
-                    document.getElementById('timeWarning').style.display = 'block';
-                    document.getElementById('warningMessage').textContent = 'Time is up!';
-                }
+            const remaining = FIXED_TIME_LIMIT - elapsed;
+            
+            // Show warnings at 5 minutes, 1 minute, and last 10 seconds
+            if (remaining === 300) {
+                document.getElementById('timeWarning').style.display = 'block';
+                document.getElementById('warningMessage').textContent = '5 minutes remaining!';
+                setTimeout(() => { document.getElementById('timeWarning').style.display = 'none'; }, 5000);
+            } else if (remaining === 60) {
+                document.getElementById('timeWarning').style.display = 'block';
+                document.getElementById('warningMessage').textContent = '1 minute remaining!';
+            } else if (remaining <= 10 && remaining > 0) {
+                document.getElementById('timeWarning').style.display = 'block';
+                document.getElementById('warningMessage').textContent = remaining + ' seconds remaining!';
+            } else if (remaining <= 0) {
+                document.getElementById('timeWarning').style.display = 'block';
+                document.getElementById('warningMessage').textContent = 'Time is up!';
             }
         }
 
@@ -495,89 +450,6 @@
                 const wpm = elapsed > 0 ? Math.round(words.length / elapsed) : 0;
                 document.getElementById('wpm').textContent = wpm;
             }
-            
-            // Real-time checking if enabled
-            if (document.getElementById('realTimeCheck').checked) {
-                performRealTimeCheck(text);
-            }
-        }
-
-        function handleKeyDown(event) {
-            // Prevent certain keys if in strict mode
-            const mode = document.getElementById('practiceMode').value;
-            if (mode === 'strict') {
-                // Prevent backspace and delete in strict mode
-                if (event.key === 'Backspace' || event.key === 'Delete') {
-                    event.preventDefault();
-                    return false;
-                }
-            }
-        }
-
-        function performRealTimeCheck(text) {
-            // This would implement real-time spell/accuracy checking
-            // For now, just show basic feedback
-            const feedbackArea = document.getElementById('feedbackArea');
-            const feedbackContent = document.getElementById('feedbackContent');
-            
-            feedbackArea.style.display = 'block';
-            feedbackContent.innerHTML = '<p class="text-gray-600">Real-time checking: ' + text.length + ' characters typed</p>';
-        }
-
-        function toggleRealTimeCheck() {
-            const isEnabled = document.getElementById('realTimeCheck').checked;
-            const feedbackArea = document.getElementById('feedbackArea');
-            
-            if (!isEnabled) {
-                feedbackArea.style.display = 'none';
-            }
-        }
-
-        function updatePracticeMode() {
-            const mode = document.getElementById('practiceMode').value;
-            const typingArea = document.getElementById('typingArea');
-            
-            // Update placeholder based on mode
-            if (mode === 'strict') {
-                typingArea.placeholder = "Strict mode: No backspace/delete allowed. Audio will auto-play.";
-            } else if (mode === 'timed') {
-                typingArea.placeholder = "Timed mode: Audio duration + 30 seconds allowed.";
-            } else {
-                typingArea.placeholder = "Unlimited mode: Take your time.";
-            }
-        }
-        
-        // Function to disable/enable settings during practice
-        function disableSettings(disable) {
-            const settingsElements = [
-                'practiceMode',
-                'autoSubmit',
-                'realTimeCheck'
-            ];
-            
-            settingsElements.forEach(id => {
-                const element = document.getElementById(id);
-                if (element) {
-                    element.disabled = disable;
-                    if (disable) {
-                        element.style.opacity = '0.5';
-                        element.style.cursor = 'not-allowed';
-                    } else {
-                        element.style.opacity = '1';
-                        element.style.cursor = 'pointer';
-                    }
-                }
-            });
-            
-            // Also disable audio controls during practice
-            const audioPlayer = document.getElementById('audioPlayer');
-            if (disable) {
-                audioPlayer.style.opacity = '0.7';
-                audioPlayer.style.pointerEvents = 'none';
-            } else {
-                audioPlayer.style.opacity = '1';
-                audioPlayer.style.pointerEvents = 'auto';
-            }
         }
         
         // Add reset functionality
@@ -593,9 +465,6 @@
             // Reset audio
             audioPlayer.pause();
             audioPlayer.currentTime = 0;
-            
-            // Re-enable settings
-            disableSettings(false);
             
             // Reset UI
             document.getElementById('typingArea').value = '';

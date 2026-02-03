@@ -2,6 +2,7 @@ import os
 import uuid
 import hashlib
 from datetime import datetime, timedelta, timezone
+import pytz
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
@@ -36,6 +37,60 @@ os.makedirs(TYPING_PASSAGES_FOLDER, exist_ok=True)
 # Initialize database
 db = SQLAlchemy(app)
 
+# Timezone configuration - IST (Indian Standard Time)
+IST = pytz.timezone('Asia/Kolkata')
+
+# Add Jinja2 filter for timezone conversion
+@app.template_filter('to_ist')
+def to_ist_filter(dt):
+    """Convert UTC datetime to IST and format it"""
+    if dt is None:
+        return 'N/A'
+    
+    # If datetime is naive (no timezone info), assume it's UTC
+    if dt.tzinfo is None:
+        dt = pytz.utc.localize(dt)
+    
+    # Convert to IST
+    ist_dt = dt.astimezone(IST)
+    return ist_dt
+
+@app.template_filter('format_date')
+def format_date_filter(dt, format='%d-%m-%Y'):
+    """Format date as DD-MM-YYYY"""
+    if dt is None:
+        return 'N/A'
+    
+    # Convert to IST first
+    if isinstance(dt, datetime):
+        ist_dt = to_ist_filter(dt)
+        return ist_dt.strftime(format)
+    return 'N/A'
+
+@app.template_filter('format_datetime')
+def format_datetime_filter(dt, format='%d-%m-%Y %I:%M %p'):
+    """Format datetime as DD-MM-YYYY HH:MM AM/PM in IST"""
+    if dt is None:
+        return 'N/A'
+    
+    # Convert to IST first
+    if isinstance(dt, datetime):
+        ist_dt = to_ist_filter(dt)
+        return ist_dt.strftime(format)
+    return 'N/A'
+
+@app.template_filter('format_time')
+def format_time_filter(dt, format='%I:%M %p'):
+    """Format time as HH:MM AM/PM in IST"""
+    if dt is None:
+        return 'N/A'
+    
+    # Convert to IST first
+    if isinstance(dt, datetime):
+        ist_dt = to_ist_filter(dt)
+        return ist_dt.strftime(format)
+    return 'N/A'
+
 # Add security headers for production
 @app.after_request
 def add_security_headers(response):
@@ -44,6 +99,13 @@ def add_security_headers(response):
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    
+    # Prevent browser caching for authenticated pages to avoid back button bypass
+    if 'user_id' in session:
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    
     return response
 
 # Database Models
@@ -60,6 +122,11 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime)
     last_activity = db.Column(db.DateTime)
+    # New columns for single device registration system
+    registered_device_id = db.Column(db.String(64))  # SHA-256 hash of device fingerprint
+    first_login_date = db.Column(db.DateTime)         # When device was first registered
+    last_login_date = db.Column(db.DateTime)          # Last successful login
+    device_reset_count = db.Column(db.Integer, default=0)  # Number of times admin reset device
 
 class PasswordResetToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -140,6 +207,39 @@ class TypingAttempt(db.Model):
     started_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     submitted_at = db.Column(db.DateTime)
 
+class FavouriteDictation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    audio_id = db.Column(db.Integer, db.ForeignKey('audio_file.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    # Unique constraint to prevent duplicate favourites
+    __table_args__ = (db.UniqueConstraint('user_id', 'audio_id', name='unique_user_audio_favourite'),)
+
+class FavouriteTyping(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    passage_id = db.Column(db.Integer, db.ForeignKey('typing_passage.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    # Unique constraint to prevent duplicate favourites
+    __table_args__ = (db.UniqueConstraint('user_id', 'passage_id', name='unique_user_passage_favourite'),)
+
+class AdmissionRequest(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(200), nullable=False)
+    state = db.Column(db.String(100), nullable=False)
+    district = db.Column(db.String(100), nullable=False)
+    contact_number = db.Column(db.String(20), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
+    date_of_birth = db.Column(db.Date, nullable=False)
+    purpose = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'approved', 'rejected'
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    processed_at = db.Column(db.DateTime)
+    processed_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    notes = db.Column(db.Text)  # Admin notes
+
 # Utility functions
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -166,6 +266,106 @@ def generate_device_fingerprint(request):
     # Create a fingerprint from browser characteristics
     fingerprint_data = f"{user_agent}|{accept_language}|{accept_encoding}"
     return hashlib.sha256(fingerprint_data.encode()).hexdigest()
+
+def generate_enhanced_device_fingerprint(request):
+    """
+    Generate an enhanced device fingerprint for single device registration system.
+    This creates a more comprehensive device signature using multiple browser characteristics.
+    """
+    user_agent = request.headers.get('User-Agent', '')
+    accept_language = request.headers.get('Accept-Language', '')
+    accept_encoding = request.headers.get('Accept-Encoding', '')
+    accept = request.headers.get('Accept', '')
+    dnt = request.headers.get('DNT', '')  # Do Not Track header
+    
+    # Create comprehensive fingerprint combining multiple factors
+    fingerprint_components = [
+        user_agent,
+        accept_language,
+        accept_encoding,
+        accept,
+        dnt
+    ]
+    
+    # Join all components with separator
+    fingerprint_data = "|".join(fingerprint_components)
+    
+    # Generate SHA-256 hash (64 characters)
+    device_hash = hashlib.sha256(fingerprint_data.encode('utf-8')).hexdigest()
+    
+    return device_hash
+
+def is_device_registered(user_id, current_fingerprint):
+    """Check if user has a registered device and if current device matches"""
+    user = User.query.get(user_id)
+    if not user:
+        return False, "User not found"
+    
+    # If no registered device yet, this will be the first device
+    if not user.registered_device_id:
+        return True, "No device registered yet - will register current device"
+    
+    # Check if current device matches registered device
+    if user.registered_device_id == current_fingerprint:
+        return True, "Device matches registered device"
+    else:
+        return False, "Device does not match registered device"
+
+def register_user_device(user_id, device_fingerprint):
+    """Register a device for first-time login"""
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return False
+        
+        # Only register if no device is currently registered
+        if user.registered_device_id:
+            return False  # Device already registered
+        
+        # Register the device
+        user.registered_device_id = device_fingerprint
+        user.first_login_date = datetime.now(timezone.utc)
+        user.last_login_date = datetime.now(timezone.utc)
+        
+        db.session.commit()
+        return True
+        
+    except Exception as e:
+        db.session.rollback()
+        return False
+
+def update_last_login_date(user_id):
+    """Update the last login date for successful login"""
+    try:
+        user = User.query.get(user_id)
+        if user:
+            user.last_login_date = datetime.now(timezone.utc)
+            db.session.commit()
+            return True
+        return False
+    except Exception as e:
+        db.session.rollback()
+        return False
+
+def reset_user_device_registration(user_id):
+    """Admin function to reset device registration for a user"""
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return False, "User not found"
+        
+        # Clear device registration
+        user.registered_device_id = None
+        user.first_login_date = None
+        # Keep last_login_date for reference
+        user.device_reset_count = (user.device_reset_count or 0) + 1
+        
+        db.session.commit()
+        return True, f"Device registration reset. Reset count: {user.device_reset_count}"
+        
+    except Exception as e:
+        db.session.rollback()
+        return False, f"Error resetting device: {str(e)}"
 
 def get_client_ip(request):
     """Get the real client IP address, considering proxies"""
@@ -355,8 +555,8 @@ def send_reset_email(email, token, otp):
     print(f"🔑 EMAIL TOKEN: {token}")
     print(f"📱 SMS OTP CODE: {otp}")
     print(f"")
-    admin_phone = app.config.get('ADMIN_PHONE', '+1234567890')
-    admin_email = app.config.get('ADMIN_EMAIL', 'admin@localhost')
+    admin_phone = app.config.get('ADMIN_PHONE', '+917756094286')
+    admin_email = app.config.get('ADMIN_EMAIL', 'suyogsudrik1996@gmail.com')
     
     print(f"💌 DELIVERY OPTIONS:")
     print(f"1. Send WhatsApp to {admin_phone}:")
@@ -665,16 +865,16 @@ def allowed_file(filename):
 
 def compare_texts(reference_text, typed_text):
     """
-    Enhanced text comparison using LCS strategy with improved error detection.
+    Improved text comparison using Levenshtein distance and SequenceMatcher.
     
-    This function addresses the issue where correctly typed words like "However..."
-    were incorrectly marked as errors by using the Longest Common Subsequence algorithm
-    for more accurate text alignment and comparison.
+    This function provides accurate word-by-word comparison without duplicate counting.
+    Fixed the issue where error words were counted twice and ensures each error
+    is displayed and counted only once.
     """
-    # Import the enhanced comparison function
-    from lcs_text_comparison import enhanced_compare_texts
+    # Import the improved comparison function
+    from improved_text_comparison import enhanced_compare_texts
     
-    # Use the enhanced LCS-based comparison
+    # Use the improved comparison algorithm
     result = enhanced_compare_texts(reference_text, typed_text)
     
     # Return in the format expected by the existing application
@@ -685,8 +885,8 @@ def compare_texts(reference_text, typed_text):
         'total_words': result['total_words'],
         'typed_words': result['typed_words'],
         'enhanced_comparison': result['enhanced_comparison'],
-        'lcs_analysis': result.get('lcs_analysis', {}),
-        'punctuation_errors': result.get('punctuation_errors', []),
+        'lcs_analysis': {},  # Not used in improved algorithm
+        'punctuation_errors': [],  # Simplified for now
         'error_summary': result.get('error_summary', {})
     }
 
@@ -916,6 +1116,23 @@ def login_required(f):
             flash('Your account is not accessible. Please contact admin.')
             return redirect(url_for('student_login'))
         
+        # Enhanced session validation - check if session exists in database
+        if 'session_token' in session:
+            active_session = Session.query.filter_by(
+                user_id=user.id,
+                session_token=session['session_token'],
+                is_active=True
+            ).first()
+            
+            if not active_session:
+                # Session token invalid or deactivated
+                session.clear()
+                flash('Your session has expired. Please log in again.')
+                return redirect(url_for('student_login'))
+            
+            # Update session activity
+            active_session.last_activity = datetime.now(timezone.utc)
+        
         # Check subscription
         if user.role == 'student' and not check_subscription_active(user):
             flash('Your subscription has expired. Please contact admin to renew.')
@@ -960,8 +1177,8 @@ def student_login():
         username = request.form['username']
         password = request.form['password']
         
-        # Generate device fingerprint and get IP
-        device_fingerprint = generate_device_fingerprint(request)
+        # Generate enhanced device fingerprint for single device registration
+        enhanced_fingerprint = generate_enhanced_device_fingerprint(request)
         client_ip = get_client_ip(request)
         user_agent = request.headers.get('User-Agent', '')
         
@@ -970,7 +1187,7 @@ def student_login():
         if user and verify_password(password, user.password_hash):
             # Pre-validation checks
             if user.is_locked:
-                flash('Your account has been locked due to login from an unauthorized device/IP. Please contact Admin.')
+                flash('Your account has been locked due to login from an unauthorized device. Please contact Admin.')
                 return render_template('student_login.html')
             
             if not user.is_active:
@@ -986,31 +1203,40 @@ def student_login():
                 flash('Your subscription has expired. Please contact admin to renew.')
                 return render_template('student_login.html')
             
-            # DEVICE/IP RESTRICTION LOGIC
-            # Check if this is a trusted device/IP combination
-            trusted_device = check_trusted_device(user.id, device_fingerprint, client_ip)
+            # SINGLE DEVICE REGISTRATION LOGIC
+            device_allowed, message = is_device_registered(user.id, enhanced_fingerprint)
             
-            if trusted_device:
-                # User is logging in from trusted device/IP - allow access
-                # Update last used time
-                trusted_device.last_used_at = datetime.now(timezone.utc)
+            if device_allowed:
+                # Device is allowed - either first login or registered device
+                if not user.registered_device_id:
+                    # First login - register this device
+                    if register_user_device(user.id, enhanced_fingerprint):
+                        flash('Device registered successfully! This device is now bound to your account.', 'success')
+                    else:
+                        flash('Error registering device. Please contact admin.', 'error')
+                        return render_template('student_login.html')
+                else:
+                    # Update last login date for existing registered device
+                    update_last_login_date(user.id)
                 
                 # Clear old sessions and create new one
                 Session.query.filter_by(user_id=user.id).update({'is_active': False})
                 new_session = Session(
                     user_id=user.id,
                     session_token=str(uuid.uuid4()),
-                    device_id=device_fingerprint
+                    device_id=enhanced_fingerprint
                 )
                 db.session.add(new_session)
                 
                 # Update user login info
                 user.last_login = datetime.now(timezone.utc)
                 user.last_activity = datetime.now(timezone.utc)
-                user.device_id = device_fingerprint
+                user.device_id = enhanced_fingerprint
                 
                 db.session.commit()
                 
+                # Set session as permanent to use PERMANENT_SESSION_LIFETIME
+                session.permanent = True
                 session['user_id'] = user.id
                 session['username'] = user.username
                 session['role'] = user.role
@@ -1022,56 +1248,10 @@ def student_login():
                     flash(f'Your subscription expires in {days_remaining} days. Please contact admin to renew.')
                 
                 return redirect(url_for('practice_selection'))
-            
             else:
-                # Check if this is the user's first login (no trusted devices)
-                existing_devices = TrustedDevice.query.filter_by(
-                    user_id=user.id,
-                    is_active=True
-                ).count()
-                
-                if existing_devices == 0:
-                    # First login - register this device/IP as trusted
-                    if register_trusted_device(user.id, device_fingerprint, client_ip, user_agent):
-                        # Clear old sessions and create new one
-                        Session.query.filter_by(user_id=user.id).update({'is_active': False})
-                        new_session = Session(
-                            user_id=user.id,
-                            session_token=str(uuid.uuid4()),
-                            device_id=device_fingerprint
-                        )
-                        db.session.add(new_session)
-                        
-                        # Update user login info
-                        user.last_login = datetime.now(timezone.utc)
-                        user.last_activity = datetime.now(timezone.utc)
-                        user.device_id = device_fingerprint
-                        
-                        db.session.commit()
-                        
-                        session['user_id'] = user.id
-                        session['username'] = user.username
-                        session['role'] = user.role
-                        session['session_token'] = new_session.session_token
-                        
-                        # Check for expiry warning
-                        days_remaining = get_subscription_days_remaining(user)
-                        if days_remaining <= 2:
-                            flash(f'Your subscription expires in {days_remaining} days. Please contact admin to renew.')
-                        
-                        return redirect(url_for('practice_selection'))
-                    else:
-                        # Error registering device
-                        flash('Error setting up device security. Please contact admin.')
-                        return render_template('student_login.html')
-                else:
-                    # User already has a trusted device, this is a different device/IP
-                    # LOCK THE ACCOUNT IMMEDIATELY
-                    lock_reason = f"Login attempt from unauthorized device/IP: {client_ip}"
-                    lock_user_account(user.id, lock_reason)
-                    
-                    flash('Your account has been locked due to login from an unauthorized device/IP. Please contact Admin.')
-                    return render_template('student_login.html')
+                # Device not allowed - block login
+                flash('Access denied. Your account is registered to another device. Please log in from your registered device or contact the admin to reset device registration.', 'error')
+                return render_template('student_login.html')
         else:
             flash('Invalid username or password')
     
@@ -1086,6 +1266,8 @@ def admin_login():
         user = User.query.filter_by(username=username).first()
         
         if user and verify_password(password, user.password_hash) and user.role == 'admin':
+            # Set session as permanent to use PERMANENT_SESSION_LIFETIME
+            session.permanent = True
             session['user_id'] = user.id
             session['username'] = user.username
             session['role'] = user.role
@@ -1120,10 +1302,36 @@ def practice_selection():
     audio_count = AudioFile.query.count()
     passage_count = TypingPassage.query.count()
     
+    # Get user's favourite dictations
+    favourite_dictations = db.session.query(
+        AudioFile,
+        FavouriteDictation.created_at
+    ).join(
+        FavouriteDictation, AudioFile.id == FavouriteDictation.audio_id
+    ).filter(
+        FavouriteDictation.user_id == session['user_id']
+    ).order_by(
+        FavouriteDictation.created_at.desc()
+    ).all()
+    
+    # Get user's favourite typing passages
+    favourite_typing = db.session.query(
+        TypingPassage,
+        FavouriteTyping.created_at
+    ).join(
+        FavouriteTyping, TypingPassage.id == FavouriteTyping.passage_id
+    ).filter(
+        FavouriteTyping.user_id == session['user_id']
+    ).order_by(
+        FavouriteTyping.created_at.desc()
+    ).all()
+    
     return render_template('practice_selection.html',
                          user=user,
                          audio_count=audio_count,
                          passage_count=passage_count,
+                         favourite_dictations=favourite_dictations,
+                         favourite_typing=favourite_typing,
                          now=datetime.now(timezone.utc).replace(tzinfo=None))
 
 @app.route('/subscription-expired')
@@ -1151,6 +1359,9 @@ def admin_dashboard():
     recent_dictation_attempts = DictationAttempt.query.order_by(DictationAttempt.submitted_at.desc()).limit(5).all()
     recent_typing_attempts = TypingAttempt.query.order_by(TypingAttempt.submitted_at.desc()).limit(5).all()
     
+    # Get pending admission requests
+    pending_requests = AdmissionRequest.query.filter_by(status='pending').order_by(AdmissionRequest.created_at.desc()).all()
+    
     return render_template('admin_dashboard.html',
                          total_users=total_users,
                          active_users=active_users,
@@ -1158,7 +1369,8 @@ def admin_dashboard():
                          total_typing_passages=total_typing_passages,
                          expiring_soon=expiring_soon,
                          recent_dictation_attempts=recent_dictation_attempts,
-                         recent_typing_attempts=recent_typing_attempts)
+                         recent_typing_attempts=recent_typing_attempts,
+                         pending_requests=pending_requests)
 
 @app.route('/admin/users')
 @admin_required
@@ -1239,7 +1451,7 @@ def admin_edit_user(user_id):
                     # Parse the date from the calendar input
                     new_end_date = datetime.strptime(new_subscription_end, '%Y-%m-%d').replace(tzinfo=None)
                     user.subscription_end = new_end_date
-                    flash(f'Subscription end date set to {new_end_date.strftime("%Y-%m-%d")}')
+                    flash(f'Subscription end date set to {new_end_date.strftime("%d-%m-%Y")}')
                 except ValueError:
                     flash('Invalid date format. Please select a valid date.', 'error')
             else:
@@ -1271,6 +1483,16 @@ def admin_edit_user(user_id):
             TrustedDevice.query.filter_by(user_id=user.id).update({'is_active': False})
             Session.query.filter_by(user_id=user.id).update({'is_active': False})
             flash('All trusted devices removed. User will set up new trusted device on next login.')
+            
+        elif action == 'reset_device_registration':
+            # Reset single device registration system
+            success, message = reset_user_device_registration(user.id)
+            if success:
+                # Also clear all sessions for security
+                Session.query.filter_by(user_id=user.id).update({'is_active': False})
+                flash(f'Device registration reset successfully. {message}', 'success')
+            else:
+                flash(f'Failed to reset device registration: {message}', 'error')
             
         elif action == 'view_trusted_devices':
             # This will be handled by the template to show trusted devices info
@@ -1318,8 +1540,8 @@ def admin_delete_user(user_id):
 @app.route('/admin/content')
 @admin_required
 def admin_content():
-    audio_files = AudioFile.query.all()
-    typing_passages = TypingPassage.query.all()
+    audio_files = AudioFile.query.order_by(AudioFile.created_at.desc()).all()
+    typing_passages = TypingPassage.query.order_by(TypingPassage.created_at.desc()).all()
     return render_template('admin_content.html',
                          audio_files=audio_files,
                          typing_passages=typing_passages)
@@ -1405,13 +1627,29 @@ def admin_upload_audio():
             # Get content type selection
             content_type = request.form.get('content_type', 'exam')
             
-            # Save to database with reference text and content type
-            # Fixed 30-minute timer for dictation
+            # Get WPM selection
+            wpm = request.form.get('wpm')
+            if not wpm:
+                flash('Please select a WPM (Words Per Minute) speed', 'error')
+                return redirect(request.url)
+            
+            try:
+                wpm = int(wpm)
+                if wpm not in [60, 80, 100, 120]:
+                    flash('Invalid WPM value. Please select from the available options.', 'error')
+                    return redirect(request.url)
+            except ValueError:
+                flash('Invalid WPM value', 'error')
+                return redirect(request.url)
+            
+            # Save to database with reference text, content type, and WPM
+            # Fixed 35-minute timer for dictation
             audio_file = AudioFile(
                 title=request.form.get('title', filename),
                 filename=filename,
                 reference_text=reference_text.strip(),
                 content_type=content_type,
+                wpm=wpm,
                 duration=2100,  # Fixed 35 minutes (2100 seconds)
                 uploaded_by=session.get('user_id')
             )
@@ -1668,9 +1906,30 @@ def admin_reports():
     active_users = User.query.filter_by(role='student', is_active=True).count()
     total_attempts = DictationAttempt.query.count() + TypingAttempt.query.count()
     
-    # Recent activity
-    recent_dictation = DictationAttempt.query.order_by(DictationAttempt.submitted_at.desc()).limit(20).all()
-    recent_typing = TypingAttempt.query.order_by(TypingAttempt.submitted_at.desc()).limit(20).all()
+    # Recent activity with usernames
+    recent_dictation = db.session.query(
+        DictationAttempt,
+        User.username,
+        AudioFile.title
+    ).join(
+        User, DictationAttempt.user_id == User.id
+    ).join(
+        AudioFile, DictationAttempt.audio_id == AudioFile.id
+    ).order_by(
+        DictationAttempt.submitted_at.desc()
+    ).limit(20).all()
+    
+    recent_typing = db.session.query(
+        TypingAttempt,
+        User.username,
+        TypingPassage.title
+    ).join(
+        User, TypingAttempt.user_id == User.id
+    ).join(
+        TypingPassage, TypingAttempt.passage_id == TypingPassage.id
+    ).order_by(
+        TypingAttempt.submitted_at.desc()
+    ).limit(20).all()
     
     # Performance statistics
     avg_dictation_score = db.session.query(db.func.avg(DictationAttempt.accuracy_percentage)).scalar() or 0
@@ -1789,13 +2048,27 @@ def test_export():
 @app.route('/dictation-practice')
 @login_required
 def dictation_practice():
-    # Get available audio files
-    audio_files = AudioFile.query.all()
-    if not audio_files:
-        flash('No audio files available for practice. Please contact admin.', 'error')
-        return redirect(url_for('practice_selection'))
+    # Get WPM filter from query parameter
+    wpm_filter = request.args.get('wpm', 'all')
     
-    # Show all audio files in one list and add attempt count for current user
+    # Base query for audio files (newest first)
+    query = AudioFile.query.order_by(AudioFile.created_at.desc())
+    
+    # Apply WPM filter if not "all"
+    if wpm_filter != 'all':
+        try:
+            wpm_value = int(wpm_filter)
+            if wpm_value in [60, 80, 100, 120]:
+                query = query.filter(AudioFile.wpm == wpm_value)
+        except ValueError:
+            pass  # Invalid filter value, show all
+    
+    audio_files = query.all()
+    
+    if not audio_files:
+        flash('No audio files available for the selected WPM speed. Try a different filter.', 'info')
+    
+    # Show all audio files in one list and add attempt count and favourite status for current user
     available_files = []
     for audio in audio_files:
         if audio.reference_text:
@@ -1805,12 +2078,25 @@ def dictation_practice():
                 audio_id=audio.id
             ).filter(DictationAttempt.submitted_at.isnot(None)).count()
             
-            # Add attempt_count attribute to audio object
+            # Check if this audio is favourited by the user
+            is_favourite = FavouriteDictation.query.filter_by(
+                user_id=session['user_id'],
+                audio_id=audio.id
+            ).first() is not None
+            
+            # Add attributes to audio object
             audio.attempt_count = attempt_count
+            audio.is_favourite = is_favourite
             available_files.append(audio)
     
+    # Get all unique WPM values for filter dropdown
+    all_wpms = db.session.query(AudioFile.wpm).distinct().filter(AudioFile.wpm.isnot(None)).order_by(AudioFile.wpm).all()
+    available_wpms = [wpm[0] for wpm in all_wpms if wpm[0]]
+    
     return render_template('dictation_practice.html',
-                         audio_files=available_files)
+                         audio_files=available_files,
+                         available_wpms=available_wpms,
+                         current_wpm_filter=wpm_filter)
 
 @app.route('/dictation-practice-advanced/<int:audio_id>')
 @login_required
@@ -1879,8 +2165,9 @@ def submit_dictation_practice():
         # Analyze common mistakes
         mistakes_analysis = analyze_common_mistakes(audio_file.reference_text, transcription)
         
-        # Store results in session for display
+        # Store minimal results in session to avoid cookie size limit
         session['dictation_results'] = {
+            'attempt_id': attempt.id,  # Just store the attempt ID
             'audio_title': audio_file.title,
             'words_typed': comparison_result['typed_words'],
             'words_correct': comparison_result['words_correct'],
@@ -1888,14 +2175,9 @@ def submit_dictation_practice():
             'accuracy_percentage': comparison_result['accuracy_percentage'],
             'time_taken': time_taken,
             'total_reference_words': comparison_result['total_words'],
-            'reference_text': audio_file.reference_text,
-            'user_text': transcription,
             'attempt_number': attempt_number,
             'username': user.username,
-            'content_type': audio_file.content_type,
-            'enhanced_comparison': comparison_result['enhanced_comparison'],
-            'improvement_data': improvement_data,
-            'mistakes_analysis': mistakes_analysis
+            'content_type': audio_file.content_type
         }
         
         return redirect(url_for('dictation_result'))
@@ -1909,61 +2191,85 @@ def submit_dictation_practice():
 @login_required
 def dictation_result():
     # Get results from session first
-    results = session.get('dictation_results')
+    session_results = session.get('dictation_results')
     
-    # If no session results, try to get the latest attempt from database
-    if not results:
-        latest_attempt = DictationAttempt.query.filter_by(
-            user_id=session['user_id']
-        ).filter(
-            DictationAttempt.submitted_at.isnot(None)
-        ).order_by(DictationAttempt.submitted_at.desc()).first()
-        
-        if latest_attempt:
-            # Get audio file and user info
-            audio_file = AudioFile.query.get(latest_attempt.audio_id)
+    if session_results and 'attempt_id' in session_results:
+        # Load full data from database using attempt_id
+        attempt = DictationAttempt.query.get(session_results['attempt_id'])
+        if attempt:
+            audio_file = AudioFile.query.get(attempt.audio_id)
             user = User.query.get(session['user_id'])
             
             if audio_file and user:
                 # Recreate comparison data from stored attempt
-                comparison_result = compare_texts(audio_file.reference_text, latest_attempt.transcription or '')
+                comparison_result = compare_texts(audio_file.reference_text, attempt.transcription or '')
                 
                 results = {
                     'audio_title': audio_file.title,
-                    'words_typed': latest_attempt.words_typed or 0,
-                    'words_correct': latest_attempt.words_correct or 0,
-                    'words_wrong': latest_attempt.words_wrong or 0,
-                    'accuracy_percentage': latest_attempt.accuracy_percentage or 0,
-                    'time_taken': latest_attempt.time_taken or 0,
+                    'words_typed': attempt.words_typed or 0,
+                    'words_correct': attempt.words_correct or 0,
+                    'words_wrong': attempt.words_wrong or 0,
+                    'accuracy_percentage': attempt.accuracy_percentage or 0,
+                    'time_taken': attempt.time_taken or 0,
                     'total_reference_words': comparison_result['total_words'],
                     'reference_text': audio_file.reference_text,
-                    'user_text': latest_attempt.transcription or '',
-                    'attempt_number': latest_attempt.attempt_number or 1,
+                    'user_text': attempt.transcription or '',
+                    'attempt_number': attempt.attempt_number or 1,
                     'username': user.username,
                     'content_type': audio_file.content_type or 'practice',
-                    'detailed_comparison': comparison_result['detailed_comparison']
+                    'enhanced_comparison': comparison_result['enhanced_comparison']
                 }
+                
+                # Clear session results
+                session.pop('dictation_results', None)
+                return render_template('dictation_result.html', results=results)
     
-    if not results:
-        flash('No results found. Please complete a dictation practice first.', 'error')
-        return redirect(url_for('dictation_practice'))
+    # Fallback: get latest attempt from database
+    latest_attempt = DictationAttempt.query.filter_by(
+        user_id=session['user_id']
+    ).filter(
+        DictationAttempt.submitted_at.isnot(None)
+    ).order_by(DictationAttempt.submitted_at.desc()).first()
     
-    # Clear results from session after displaying (only if it came from session)
-    if session.get('dictation_results'):
-        session.pop('dictation_results', None)
+    if latest_attempt:
+        # Get audio file and user info
+        audio_file = AudioFile.query.get(latest_attempt.audio_id)
+        user = User.query.get(session['user_id'])
+        
+        if audio_file and user:
+            # Recreate comparison data from stored attempt
+            comparison_result = compare_texts(audio_file.reference_text, latest_attempt.transcription or '')
+            
+            results = {
+                'audio_title': audio_file.title,
+                'words_typed': latest_attempt.words_typed or 0,
+                'words_correct': latest_attempt.words_correct or 0,
+                'words_wrong': latest_attempt.words_wrong or 0,
+                'accuracy_percentage': latest_attempt.accuracy_percentage or 0,
+                'time_taken': latest_attempt.time_taken or 0,
+                'total_reference_words': comparison_result['total_words'],
+                'reference_text': audio_file.reference_text,
+                'user_text': latest_attempt.transcription or '',
+                'attempt_number': latest_attempt.attempt_number or 1,
+                'username': user.username,
+                'content_type': audio_file.content_type or 'practice',
+                'enhanced_comparison': comparison_result['enhanced_comparison']
+            }
+            return render_template('dictation_result.html', results=results)
     
-    return render_template('dictation_result.html', results=results)
+    flash('No results found. Please complete a dictation practice first.', 'error')
+    return redirect(url_for('dictation_practice'))
 
 @app.route('/typing-practice')
 @login_required
 def typing_practice():
-    # Get available typing passages
-    typing_passages = TypingPassage.query.all()
+    # Get available typing passages (newest first)
+    typing_passages = TypingPassage.query.order_by(TypingPassage.created_at.desc()).all()
     if not typing_passages:
         flash('No typing passages available for practice. Please contact admin.', 'error')
         return redirect(url_for('practice_selection'))
     
-    # Add attempt count for each passage for current user
+    # Add attempt count and favourite status for each passage for current user
     for passage in typing_passages:
         # Calculate attempt count for this user and passage
         attempt_count = TypingAttempt.query.filter_by(
@@ -1971,8 +2277,15 @@ def typing_practice():
             passage_id=passage.id
         ).filter(TypingAttempt.submitted_at.isnot(None)).count()
         
-        # Add attempt_count attribute to passage object
+        # Check if this passage is favourited by the user
+        is_favourite = FavouriteTyping.query.filter_by(
+            user_id=session['user_id'],
+            passage_id=passage.id
+        ).first() is not None
+        
+        # Add attributes to passage object
         passage.attempt_count = attempt_count
+        passage.is_favourite = is_favourite
     
     return render_template('typing_practice.html', typing_passages=typing_passages)
 
@@ -2052,8 +2365,9 @@ def submit_typing_practice():
         # Analyze common mistakes
         mistakes_analysis = analyze_common_mistakes(passage.content, typed_text)
         
-        # Store results in session for display (if we create a results page later)
+        # Store minimal results in session to avoid cookie size limit
         session['typing_results'] = {
+            'attempt_id': attempt.id,  # Just store the attempt ID
             'passage_title': passage.title,
             'words_typed': words_typed,
             'words_correct': words_correct,
@@ -2062,12 +2376,7 @@ def submit_typing_practice():
             'wpm': calculated_wpm,
             'time_taken': time_taken,
             'attempt_number': attempt_number,
-            'username': user.username,
-            'reference_text': passage.content,
-            'user_text': typed_text,
-            'enhanced_comparison': comparison_result['enhanced_comparison'],
-            'improvement_data': improvement_data,
-            'mistakes_analysis': mistakes_analysis
+            'username': user.username
         }
         
         flash(f'Typing practice submitted! Attempt #{attempt_number} - WPM: {calculated_wpm:.1f}, Accuracy: {calculated_accuracy:.1f}%, Time: {time_taken}s', 'success')
@@ -2082,49 +2391,179 @@ def submit_typing_practice():
 @login_required
 def typing_result():
     # Get results from session first
-    results = session.get('typing_results')
+    session_results = session.get('typing_results')
     
-    # If no session results, try to get the latest attempt from database
-    if not results:
-        latest_attempt = TypingAttempt.query.filter_by(
-            user_id=session['user_id']
-        ).filter(
-            TypingAttempt.submitted_at.isnot(None)
-        ).order_by(TypingAttempt.submitted_at.desc()).first()
-        
-        if latest_attempt:
-            # Get passage and user info
-            passage = TypingPassage.query.get(latest_attempt.passage_id)
+    if session_results and 'attempt_id' in session_results:
+        # Load full data from database using attempt_id
+        attempt = TypingAttempt.query.get(session_results['attempt_id'])
+        if attempt:
+            passage = TypingPassage.query.get(attempt.passage_id)
             user = User.query.get(session['user_id'])
             
             if passage and user:
                 # Recreate comparison data from stored attempt
-                comparison_result = compare_texts(passage.content, latest_attempt.typed_text or '')
+                comparison_result = compare_texts(passage.content, attempt.typed_text or '')
                 
                 results = {
                     'passage_title': passage.title,
-                    'words_typed': latest_attempt.words_typed or 0,
-                    'words_correct': latest_attempt.words_correct or 0,
-                    'words_wrong': latest_attempt.words_wrong or 0,
-                    'accuracy_percentage': latest_attempt.accuracy_percentage or 0,
-                    'wpm': latest_attempt.wpm or 0,
-                    'time_taken': latest_attempt.time_taken or 0,
-                    'attempt_number': latest_attempt.attempt_number or 1,
+                    'words_typed': attempt.words_typed or 0,
+                    'words_correct': attempt.words_correct or 0,
+                    'words_wrong': attempt.words_wrong or 0,
+                    'accuracy_percentage': attempt.accuracy_percentage or 0,
+                    'wpm': attempt.wpm or 0,
+                    'time_taken': attempt.time_taken or 0,
+                    'attempt_number': attempt.attempt_number or 1,
                     'username': user.username,
                     'reference_text': passage.content,
-                    'user_text': latest_attempt.typed_text or '',
+                    'user_text': attempt.typed_text or '',
                     'enhanced_comparison': comparison_result['enhanced_comparison']
                 }
+                
+                # Clear session results
+                session.pop('typing_results', None)
+                return render_template('typing_result.html', results=results)
     
-    if not results:
-        flash('No results found. Please complete a typing practice first.', 'error')
-        return redirect(url_for('typing_practice'))
+    # Fallback: get latest attempt from database
+    latest_attempt = TypingAttempt.query.filter_by(
+        user_id=session['user_id']
+    ).filter(
+        TypingAttempt.submitted_at.isnot(None)
+    ).order_by(TypingAttempt.submitted_at.desc()).first()
     
-    # Clear results from session after displaying (only if it came from session)
-    if session.get('typing_results'):
-        session.pop('typing_results', None)
+    if latest_attempt:
+        # Get passage and user info
+        passage = TypingPassage.query.get(latest_attempt.passage_id)
+        user = User.query.get(session['user_id'])
+        
+        if passage and user:
+            # Recreate comparison data from stored attempt
+            comparison_result = compare_texts(passage.content, latest_attempt.typed_text or '')
+            
+            results = {
+                'passage_title': passage.title,
+                'words_typed': latest_attempt.words_typed or 0,
+                'words_correct': latest_attempt.words_correct or 0,
+                'words_wrong': latest_attempt.words_wrong or 0,
+                'accuracy_percentage': latest_attempt.accuracy_percentage or 0,
+                'wpm': latest_attempt.wpm or 0,
+                'time_taken': latest_attempt.time_taken or 0,
+                'attempt_number': latest_attempt.attempt_number or 1,
+                'username': user.username,
+                'reference_text': passage.content,
+                'user_text': latest_attempt.typed_text or '',
+                'enhanced_comparison': comparison_result['enhanced_comparison']
+            }
+            return render_template('typing_result.html', results=results)
     
-    return render_template('typing_result.html', results=results)
+    flash('No results found. Please complete a typing practice first.', 'error')
+    return redirect(url_for('typing_practice'))
+
+@app.route('/user-history')
+@login_required
+def user_history():
+    """Display user's complete practice history for both dictation and typing"""
+    user = User.query.get(session['user_id'])
+    
+    # Get all dictation attempts for this user (latest first)
+    dictation_attempts = db.session.query(
+        DictationAttempt,
+        AudioFile.title.label('audio_title')
+    ).join(
+        AudioFile, DictationAttempt.audio_id == AudioFile.id
+    ).filter(
+        DictationAttempt.user_id == user.id,
+        DictationAttempt.submitted_at.isnot(None)
+    ).order_by(
+        DictationAttempt.submitted_at.desc()
+    ).all()
+    
+    # Get all typing attempts for this user (latest first)
+    typing_attempts = db.session.query(
+        TypingAttempt,
+        TypingPassage.title.label('passage_title'),
+        TypingPassage.word_count.label('total_words')
+    ).join(
+        TypingPassage, TypingAttempt.passage_id == TypingPassage.id
+    ).filter(
+        TypingAttempt.user_id == user.id,
+        TypingAttempt.submitted_at.isnot(None)
+    ).order_by(
+        TypingAttempt.submitted_at.desc()
+    ).all()
+    
+    # Format dictation history
+    dictation_history = []
+    for attempt, audio_title in dictation_attempts:
+        # Get reference text to calculate total words
+        audio_file = AudioFile.query.get(attempt.audio_id)
+        total_words = len(audio_file.reference_text.split()) if audio_file and audio_file.reference_text else 0
+        
+        # Generate enhanced comparison for error highlighting
+        enhanced_comparison = []
+        if audio_file and audio_file.reference_text and attempt.transcription:
+            comparison_result = compare_texts(audio_file.reference_text, attempt.transcription)
+            enhanced_comparison = comparison_result.get('enhanced_comparison', [])
+        
+        dictation_history.append({
+            'id': attempt.id,
+            'audio_title': audio_title,
+            'attempt_number': attempt.attempt_number,
+            'total_words': total_words,
+            'words_typed': attempt.words_typed or 0,
+            'words_correct': attempt.words_correct or 0,
+            'words_wrong': attempt.words_wrong or 0,
+            'accuracy_percentage': attempt.accuracy_percentage or 0,
+            'time_taken': attempt.time_taken or 0,
+            'submitted_at': attempt.submitted_at,
+            'transcription': attempt.transcription,
+            'reference_text': audio_file.reference_text if audio_file else '',
+            'enhanced_comparison': enhanced_comparison
+        })
+    
+    # Format typing history
+    typing_history = []
+    for attempt, passage_title, total_words in typing_attempts:
+        # Generate enhanced comparison for error highlighting
+        enhanced_comparison = []
+        passage = TypingPassage.query.get(attempt.passage_id)
+        if passage and passage.content and attempt.typed_text:
+            comparison_result = compare_texts(passage.content, attempt.typed_text)
+            enhanced_comparison = comparison_result.get('enhanced_comparison', [])
+        
+        typing_history.append({
+            'id': attempt.id,
+            'passage_title': passage_title,
+            'attempt_number': attempt.attempt_number,
+            'total_words': total_words or 0,
+            'words_typed': attempt.words_typed or 0,
+            'words_correct': attempt.words_correct or 0,
+            'words_wrong': attempt.words_wrong or 0,
+            'accuracy_percentage': attempt.accuracy_percentage or 0,
+            'wpm': attempt.wpm or 0,
+            'time_taken': attempt.time_taken or 0,
+            'submitted_at': attempt.submitted_at,
+            'typed_text': attempt.typed_text,
+            'passage_id': attempt.passage_id,
+            'reference_text': passage.content if passage else '',
+            'enhanced_comparison': enhanced_comparison
+        })
+    
+    # Calculate summary statistics
+    summary_stats = {
+        'total_dictation_attempts': len(dictation_history),
+        'total_typing_attempts': len(typing_history),
+        'avg_dictation_accuracy': sum(h['accuracy_percentage'] for h in dictation_history) / len(dictation_history) if dictation_history else 0,
+        'avg_typing_accuracy': sum(h['accuracy_percentage'] for h in typing_history) / len(typing_history) if typing_history else 0,
+        'avg_typing_wpm': sum(h['wpm'] for h in typing_history) / len(typing_history) if typing_history else 0,
+        'best_dictation_accuracy': max((h['accuracy_percentage'] for h in dictation_history), default=0),
+        'best_typing_wpm': max((h['wpm'] for h in typing_history), default=0)
+    }
+    
+    return render_template('user_history.html',
+                         user=user,
+                         dictation_history=dictation_history,
+                         typing_history=typing_history,
+                         summary_stats=summary_stats)
 
 @app.route('/dictation-leaderboard')
 @login_required
@@ -2187,8 +2626,8 @@ def dictation_leaderboard():
             'current_rank': current_rank
         }
     
-    # Get available audio files for filter
-    available_audios = AudioFile.query.all()
+    # Get available audio files for filter (newest first)
+    available_audios = AudioFile.query.order_by(AudioFile.created_at.desc()).all()
     
     return render_template('dictation_leaderboard.html',
                          leaderboard_data=leaderboard_data,
@@ -2259,8 +2698,8 @@ def typing_leaderboard():
             'current_rank': current_rank
         }
     
-    # Get available passages for filter
-    available_passages = TypingPassage.query.all()
+    # Get available passages for filter (newest first)
+    available_passages = TypingPassage.query.order_by(TypingPassage.created_at.desc()).all()
     
     return render_template('typing_leaderboard.html',
                          leaderboard_data=leaderboard_data,
@@ -2316,7 +2755,7 @@ def filter_dictation_leaderboard():
                 'audio_filename': audio_title,
                 'accuracy': attempt.accuracy_percentage or 0,
                 'time_taken': round(attempt.time_taken / 60, 1) if attempt.time_taken else 0,
-                'completed_at': attempt.submitted_at.strftime('%Y-%m-%d'),
+                'completed_at': attempt.submitted_at.strftime('%d-%m-%Y'),
                 'score': score,
                 'words_typed': attempt.words_typed or 0
             })
@@ -2395,7 +2834,7 @@ def filter_typing_leaderboard():
                 'wpm': round(attempt.wpm or 0, 1),
                 'accuracy': attempt.accuracy_percentage or 0,
                 'error_count': attempt.words_wrong or 0,
-                'completed_at': attempt.submitted_at.strftime('%Y-%m-%d'),
+                'completed_at': attempt.submitted_at.strftime('%d-%m-%Y'),
                 'score': score
             })
         
@@ -2432,9 +2871,14 @@ def get_user_password(user_id):
             'student2': 'student123',
             'student3': 'student123',
             'demo': 'demo123',
-            'test': 'test123',
-            app.config.get('ADMIN_USERNAME', 'admin'): app.config.get('ADMIN_PASSWORD', 'admin123')
+            'test': 'test123'
         }
+        
+        # Add admin password only if environment variables are set
+        admin_username = app.config.get('ADMIN_USERNAME')
+        admin_password = app.config.get('ADMIN_PASSWORD')
+        if admin_username and admin_password:
+            demo_passwords[admin_username] = admin_password
         
         # Check if it's a known demo account
         if user.username in demo_passwords:
@@ -2515,8 +2959,8 @@ def admin_forgot_password():
             db.session.commit()
             
             # Send notifications (using configured admin contact info)
-            admin_email = app.config.get('ADMIN_EMAIL', 'admin@localhost')
-            admin_mobile = app.config.get('ADMIN_PHONE', '+1234567890')
+            admin_email = app.config.get('ADMIN_EMAIL', 'suyogsudrik1996@gmail.com')
+            admin_mobile = app.config.get('ADMIN_PHONE', '+917756094286')
             
             # Send email notification
             send_reset_email(admin_email, reset_token, otp_code)
@@ -2623,10 +3067,10 @@ def api_forgot_password():
         # Regardless of whether user exists, provide helpful response
         return jsonify({
             'success': True,
-            'message': f'Password reset request received for "{username}". Since students cannot reset their own passwords, please contact your administrator directly:\n\n📞 Call: {app.config.get("ADMIN_PHONE", "+1234567890")}\n📧 Email: {app.config.get("ADMIN_EMAIL", "admin@localhost")}\n\nThe admin can reset your password and help with any account issues.',
+            'message': f'Password reset request received for "{username}". Since students cannot reset their own passwords, please contact your administrator directly:\n\n📞 Call: {app.config.get("ADMIN_PHONE", "+917756094286")}\n📧 Email: {app.config.get("ADMIN_EMAIL", "suyogsudrik1996@gmail.com")}\n\nThe admin can reset your password and help with any account issues.',
             'admin_contact': {
-                'phone': app.config.get('ADMIN_PHONE', '+1234567890'),
-                'email': app.config.get('ADMIN_EMAIL', 'admin@localhost')
+                'phone': app.config.get('ADMIN_PHONE', '+917756094286'),
+                'email': app.config.get('ADMIN_EMAIL', 'suyogsudrik1996@gmail.com')
             }
         })
         
@@ -2697,11 +3141,11 @@ def export_data():
                         'Username': student.username,
                         'Status': 'Active' if student.is_active else 'Inactive',
                         'Locked': 'Yes' if student.is_locked else 'No',
-                        'Subscription Start': student.subscription_start.strftime('%Y-%m-%d') if student.subscription_start else 'N/A',
-                        'Subscription End': student.subscription_end.strftime('%Y-%m-%d') if student.subscription_end else 'N/A',
+                        'Subscription Start': student.subscription_start.strftime('%d-%m-%Y') if student.subscription_start else 'N/A',
+                        'Subscription End': student.subscription_end.strftime('%d-%m-%Y') if student.subscription_end else 'N/A',
                         'Days Remaining': get_subscription_days_remaining(student),
-                        'Last Login': student.last_login.strftime('%Y-%m-%d %H:%M') if student.last_login else 'Never',
-                        'Created At': student.created_at.strftime('%Y-%m-%d') if student.created_at else 'N/A'
+                        'Last Login': student.last_login.strftime('%d-%m-%Y %H:%M') if student.last_login else 'Never',
+                        'Created At': student.created_at.strftime('%d-%m-%Y') if student.created_at else 'N/A'
                     })
                 print(f"Students data collected successfully: {len(export_data_dict['students'])} records")  # Debug
             except Exception as e:
@@ -2730,7 +3174,7 @@ def export_data():
                     'Words Wrong': attempt.words_wrong or 0,
                     'Accuracy %': round(attempt.accuracy_percentage or 0, 2),
                     'Time Taken (min)': round((attempt.time_taken or 0) / 60, 2),
-                    'Submitted At': attempt.submitted_at.strftime('%Y-%m-%d %H:%M') if attempt.submitted_at else 'N/A'
+                    'Submitted At': attempt.submitted_at.strftime('%d-%m-%Y %H:%M') if attempt.submitted_at else 'N/A'
                 })
         
         # Typing attempts data
@@ -2756,7 +3200,7 @@ def export_data():
                     'Accuracy %': round(attempt.accuracy_percentage or 0, 2),
                     'WPM': round(attempt.wpm or 0, 2),
                     'Time Taken (sec)': attempt.time_taken or 0,
-                    'Submitted At': attempt.submitted_at.strftime('%Y-%m-%d %H:%M') if attempt.submitted_at else 'N/A'
+                    'Submitted At': attempt.submitted_at.strftime('%d-%m-%Y %H:%M') if attempt.submitted_at else 'N/A'
                 })
         
         # Performance statistics
@@ -2795,8 +3239,8 @@ def export_data():
                 
                 export_data_dict['subscriptions'].append({
                     'Student': student.username,
-                    'Subscription Start': student.subscription_start.strftime('%Y-%m-%d') if student.subscription_start else 'N/A',
-                    'Subscription End': student.subscription_end.strftime('%Y-%m-%d') if student.subscription_end else 'N/A',
+                    'Subscription Start': student.subscription_start.strftime('%d-%m-%Y') if student.subscription_start else 'N/A',
+                    'Subscription End': student.subscription_end.strftime('%d-%m-%Y') if student.subscription_end else 'N/A',
                     'Days Remaining': days_remaining,
                     'Status': 'Active' if is_active else 'Expired',
                     'Account Status': 'Active' if student.is_active else 'Suspended',
@@ -3043,7 +3487,7 @@ def export_data():
                 
                 # Add generation info
                 story.append(Spacer(1, 30))
-                story.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+                story.append(Paragraph(f"Generated on: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}", styles['Normal']))
                 
                 print("Building PDF...")  # Debug
                 # Build PDF
@@ -3083,6 +3527,260 @@ def export_data():
             'error': f'Export failed: {str(e)}'
         }), 500
 
+# Session validation API endpoint for client-side checks
+@app.route('/api/validate-session', methods=['GET'])
+def validate_session():
+    """API endpoint to validate current session status"""
+    if 'user_id' not in session:
+        return jsonify({'valid': False, 'message': 'No active session'}), 401
+    
+    # Check if user exists and is active
+    user = User.query.get(session['user_id'])
+    if not user or not user.is_active or user.is_locked:
+        session.clear()
+        return jsonify({'valid': False, 'message': 'User account not accessible'}), 401
+    
+    # Check session token if present
+    if 'session_token' in session:
+        active_session = Session.query.filter_by(
+            user_id=user.id,
+            session_token=session['session_token'],
+            is_active=True
+        ).first()
+        
+        if not active_session:
+            session.clear()
+            return jsonify({'valid': False, 'message': 'Session token invalid'}), 401
+        
+        # Update session activity
+        active_session.last_activity = datetime.now(timezone.utc)
+        db.session.commit()
+    
+    # Check subscription for students
+    if user.role == 'student' and not check_subscription_active(user):
+        return jsonify({'valid': False, 'message': 'Subscription expired'}), 401
+    
+    return jsonify({'valid': True, 'message': 'Session valid'})
+
+# Favourite API endpoints
+@app.route('/api/toggle-favourite-dictation/<int:audio_id>', methods=['POST'])
+@login_required
+def toggle_favourite_dictation(audio_id):
+    """Toggle favourite status for a dictation audio"""
+    try:
+        user_id = session['user_id']
+        
+        # Check if already favourited
+        favourite = FavouriteDictation.query.filter_by(
+            user_id=user_id,
+            audio_id=audio_id
+        ).first()
+        
+        if favourite:
+            # Remove from favourites
+            db.session.delete(favourite)
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'is_favourite': False,
+                'message': 'Removed from favourites'
+            })
+        else:
+            # Add to favourites
+            new_favourite = FavouriteDictation(
+                user_id=user_id,
+                audio_id=audio_id
+            )
+            db.session.add(new_favourite)
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'is_favourite': True,
+                'message': 'Added to favourites'
+            })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/toggle-favourite-typing/<int:passage_id>', methods=['POST'])
+@login_required
+def toggle_favourite_typing(passage_id):
+    """Toggle favourite status for a typing passage"""
+    try:
+        user_id = session['user_id']
+        
+        # Check if already favourited
+        favourite = FavouriteTyping.query.filter_by(
+            user_id=user_id,
+            passage_id=passage_id
+        ).first()
+        
+        if favourite:
+            # Remove from favourites
+            db.session.delete(favourite)
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'is_favourite': False,
+                'message': 'Removed from favourites'
+            })
+        else:
+            # Add to favourites
+            new_favourite = FavouriteTyping(
+                user_id=user_id,
+                passage_id=passage_id
+            )
+            db.session.add(new_favourite)
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'is_favourite': True,
+                'message': 'Added to favourites'
+            })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# Admission Request Routes
+@app.route('/admission-request', methods=['GET', 'POST'])
+def admission_request():
+    if request.method == 'POST':
+        try:
+            full_name = request.form.get('full_name', '').strip()
+            state = request.form.get('state', '').strip()
+            district = request.form.get('district', '').strip()
+            contact_number = request.form.get('contact_number', '').strip()
+            email = request.form.get('email', '').strip()
+            dob_str = request.form.get('date_of_birth', '').strip()
+            purpose = request.form.get('purpose', '').strip()
+            
+            # Validate required fields
+            if not all([full_name, state, district, contact_number, email, dob_str, purpose]):
+                flash('All fields are required', 'error')
+                return render_template('admission_request.html')
+            
+            # Parse date of birth
+            try:
+                date_of_birth = datetime.strptime(dob_str, '%Y-%m-%d').date()
+            except ValueError:
+                flash('Invalid date format', 'error')
+                return render_template('admission_request.html')
+            
+            # Validate contact number (basic validation)
+            if not contact_number.replace('+', '').replace('-', '').replace(' ', '').isdigit():
+                flash('Invalid contact number format', 'error')
+                return render_template('admission_request.html')
+            
+            # Create admission request
+            admission_req = AdmissionRequest(
+                full_name=full_name,
+                state=state,
+                district=district,
+                contact_number=contact_number,
+                email=email,
+                date_of_birth=date_of_birth,
+                purpose=purpose,
+                status='pending'
+            )
+            
+            db.session.add(admission_req)
+            db.session.commit()
+            
+            flash('Your admission request has been submitted successfully! The admin will review and contact you soon.', 'success')
+            return redirect(url_for('index'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error submitting request: {str(e)}', 'error')
+            return render_template('admission_request.html')
+    
+    return render_template('admission_request.html')
+
+@app.route('/admin/admission-requests')
+@admin_required
+def admin_admission_requests():
+    # Get all admission requests (pending first, then processed)
+    pending_requests = AdmissionRequest.query.filter_by(status='pending').order_by(AdmissionRequest.created_at.desc()).all()
+    processed_requests = AdmissionRequest.query.filter(AdmissionRequest.status.in_(['approved', 'rejected'])).order_by(AdmissionRequest.processed_at.desc()).limit(50).all()
+    
+    return render_template('admin_admission_requests.html',
+                         pending_requests=pending_requests,
+                         processed_requests=processed_requests,
+                         now=datetime.now(timezone.utc).replace(tzinfo=None))
+
+@app.route('/admin/admission-request/<int:request_id>/process', methods=['POST'])
+@admin_required
+def process_admission_request(request_id):
+    try:
+        admission_req = AdmissionRequest.query.get_or_404(request_id)
+        action = request.form.get('action')
+        notes = request.form.get('notes', '').strip()
+        
+        if action == 'approve':
+            admission_req.status = 'approved'
+            admission_req.processed_at = datetime.now(timezone.utc)
+            admission_req.processed_by = session['user_id']
+            admission_req.notes = notes
+            
+            flash(f'Admission request for {admission_req.full_name} has been approved', 'success')
+            
+        elif action == 'reject':
+            admission_req.status = 'rejected'
+            admission_req.processed_at = datetime.now(timezone.utc)
+            admission_req.processed_by = session['user_id']
+            admission_req.notes = notes
+            
+            flash(f'Admission request for {admission_req.full_name} has been rejected', 'info')
+            
+        elif action == 'create_user':
+            # Create a new student user based on the request
+            username = request.form.get('username', '').strip()
+            password = request.form.get('password', '').strip()
+            subscription_days = int(request.form.get('subscription_days', 30))
+            
+            if not username or not password:
+                flash('Username and password are required to create user', 'error')
+                return redirect(url_for('admin_admission_requests'))
+            
+            # Check if username already exists
+            if User.query.filter_by(username=username).first():
+                flash('Username already exists', 'error')
+                return redirect(url_for('admin_admission_requests'))
+            
+            # Create new student
+            new_user = User(
+                username=username,
+                password_hash=hash_password(password),
+                role='student',
+                is_active=True,
+                subscription_start=datetime.now(timezone.utc),
+                subscription_end=datetime.now(timezone.utc) + timedelta(days=subscription_days)
+            )
+            
+            db.session.add(new_user)
+            
+            # Mark request as approved
+            admission_req.status = 'approved'
+            admission_req.processed_at = datetime.now(timezone.utc)
+            admission_req.processed_by = session['user_id']
+            admission_req.notes = f'User created: {username}'
+            
+            flash(f'Student account "{username}" created successfully for {admission_req.full_name}', 'success')
+        
+        db.session.commit()
+        return redirect(url_for('admin_admission_requests'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error processing request: {str(e)}', 'error')
+        return redirect(url_for('admin_admission_requests'))
+
 # Serve uploaded files
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -3098,6 +3796,34 @@ def typing_passage_file(filename):
 def init_db():
     with app.app_context():
         db.create_all()
+        
+        # Add the new columns manually if they don't exist
+        try:
+            from sqlalchemy import text
+            # Check if new columns exist and add them if they don't
+            inspector = db.inspect(db.engine)
+            existing_columns = [col['name'] for col in inspector.get_columns('user')]
+            
+            columns_to_add = {
+                'registered_device_id': 'VARCHAR(64)',
+                'first_login_date': 'DATETIME',
+                'last_login_date': 'DATETIME',
+                'device_reset_count': 'INTEGER DEFAULT 0'
+            }
+            
+            for column_name, column_type in columns_to_add.items():
+                if column_name not in existing_columns:
+                    try:
+                        db.session.execute(text(f'ALTER TABLE user ADD COLUMN {column_name} {column_type}'))
+                        print(f"✅ Added column: {column_name}")
+                    except Exception as e:
+                        if "duplicate column" not in str(e).lower():
+                            print(f"⚠️ Could not add column {column_name}: {e}")
+            
+            db.session.commit()
+            
+        except Exception as e:
+            print(f"⚠️ Column addition error: {e}")
         
         # Only create demo student accounts with active subscriptions
         # Admin accounts must be created manually for security
@@ -3132,16 +3858,24 @@ def ensure_admin_accounts_startup():
             admin_exists = User.query.filter_by(username='admin').first()
             
             if not admin_exists:
-                admin_user = User(
-                    username=app.config.get('ADMIN_USERNAME', 'admin'),
-                    password_hash=hash_password(app.config.get('ADMIN_PASSWORD', 'admin123')),
-                    role='admin',
-                    is_active=True,
-                    is_locked=False,
-                    created_at=datetime.now(timezone.utc)
-                )
-                db.session.add(admin_user)
-                print("✅ Created admin account on startup")
+                # Only create admin if environment variables are set
+                admin_username = app.config.get('ADMIN_USERNAME')
+                admin_password = app.config.get('ADMIN_PASSWORD')
+                
+                if admin_username and admin_password:
+                    admin_user = User(
+                        username=admin_username,
+                        password_hash=hash_password(admin_password),
+                        role='admin',
+                        is_active=True,
+                        is_locked=False,
+                        created_at=datetime.now(timezone.utc)
+                    )
+                    db.session.add(admin_user)
+                    print("✅ Created admin account on startup")
+                else:
+                    print("⚠️  Admin credentials not found in environment variables!")
+                    print("   Set ADMIN_USERNAME and ADMIN_PASSWORD in .env file")
             
             # Convert any existing superuser accounts to admin
             superuser_accounts = User.query.filter_by(role='superuser').all()

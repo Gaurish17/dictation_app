@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admission Requests - Admin - Stenographix</title>
+        <!-- Preconnect to CDN for faster resource loading -->
+
+        <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+        <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+
+        
+
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <style>
+
+            /* Critical CSS to prevent FOUC */
+
+            svg {
+
+                width: 1.5rem;
+
+                height: 1.5rem;
+
+                display: inline-block;
+
+                vertical-align: middle;
+
+            }
+
+            
+
+            body {
+
+                margin: 0;
+
+                padding: 0;
+
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+            }
+
+            
+
+            * {
+
+                box-sizing: border-box;
+
+            }
+
+            
+
+    
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-lg border-b">
+        <div class="w-full px-2 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('admin_dashboard') }}" class="text-blue-600 hover:text-blue-800 font-medium">
+                        ← Back to Dashboard
+                    </a>
+                    <h1 class="text-3xl font-bold text-gray-800">📋 Admission Requests</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">
+                        Welcome, <span class="font-semibold text-gray-800">{{ session.username }}</span>
+                    </span>
+                    <a href="#" onclick="confirmLogout()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-all duration-300 text-sm font-medium shadow-lg">
+                        🚪 Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="w-full px-2 py-6">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-6">
+                        {% if category == 'success' %}
+                            <div class="bg-green-50 border-l-4 border-green-400 text-green-800 px-6 py-4 rounded-lg shadow-lg">
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span class="font-medium">{{ message }}</span>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="bg-blue-50 border-l-4 border-blue-400 text-blue-800 px-6 py-4 rounded-lg shadow-lg">
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span class="font-medium">{{ message }}</span>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Statistics -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-xl bg-yellow-500 text-white shadow-md">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-600 truncate">Pending Requests</dt>
+                            <dd class="text-2xl font-bold text-gray-800">{{ pending_requests|length }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-xl bg-green-500 text-white shadow-md">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-600 truncate">Recently Processed</dt>
+                            <dd class="text-2xl font-bold text-gray-800">{{ processed_requests|length }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Requests -->
+        {% if pending_requests %}
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-yellow-500 mr-2">⏳</span>
+                Pending Requests
+            </h2>
+            <div class="space-y-4">
+                {% for req in pending_requests %}
+                <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-gray-800">{{ req.full_name }}</h3>
+                            <p class="text-sm text-gray-500">Submitted: {{ req.created_at|format_datetime('%d-%m-%Y %I:%M %p') }}</p>
+                        </div>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                            ⏳ Pending
+                        </span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <p class="text-sm text-gray-600"><strong>State:</strong> {{ req.state }}</p>
+                            <p class="text-sm text-gray-600"><strong>District:</strong> {{ req.district }}</p>
+                            <p class="text-sm text-gray-600"><strong>Contact:</strong> {{ req.contact_number }}</p>
+                            <p class="text-sm text-gray-600"><strong>Email:</strong> {{ req.email }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600"><strong>Date of Birth:</strong> {{ req.date_of_birth|format_date('%d-%m-%Y') }}</p>
+                            <p class="text-sm text-gray-600"><strong>Age:</strong> {% set age = ((now.year - req.date_of_birth.year) - ((now.month, now.day) < (req.date_of_birth.month, req.date_of_birth.day)))|int %}{{ age }} years</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p class="text-sm font-medium text-gray-700 mb-1">Purpose/Exam:</p>
+                        <p class="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">{{ req.purpose }}</p>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="showCreateUserModal({{ req.id }}, '{{ req.full_name }}')" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg transition-all duration-300">
+                            ✅ Create User Account
+                        </button>
+                        <button onclick="showApproveModal({{ req.id }}, '{{ req.full_name }}')" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg transition-all duration-300">
+                            👍 Approve Only
+                        </button>
+                        <button onclick="showRejectModal({{ req.id }}, '{{ req.full_name }}')" 
+                                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg transition-all duration-300">
+                            ❌ Reject
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-white rounded-xl shadow-lg p-8 border border-gray-200 mb-8 text-center">
+            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">No Pending Requests</h3>
+            <p class="text-gray-600">All admission requests have been processed.</p>
+        </div>
+        {% endif %}
+
+        <!-- Processed Requests -->
+        {% if processed_requests %}
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-green-500 mr-2">✅</span>
+                Recently Processed (Last 50)
+            </h2>
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Processed</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for req in processed_requests %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">{{ req.full_name }}</div>
+                                    <div class="text-sm text-gray-500">DOB: {{ req.date_of_birth|format_date('%d-%m-%Y') }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    {{ req.contact_number }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    {{ req.email }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    {{ req.district }}, {{ req.state }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if req.status == 'approved' %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            ✅ Approved
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                            ❌ Rejected
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    {{ req.processed_at|format_date('%d-%m-%Y') if req.processed_at else 'N/A' }}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
+                                    {{ req.notes or 'No notes' }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Create User Modal -->
+    <div id="createUserModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Create User Account</h3>
+                <form id="createUserForm" method="POST" action="">
+                    <input type="hidden" name="action" value="create_user">
+                    <p class="text-sm text-gray-600 mb-4">Creating account for: <strong id="createUserName"></strong></p>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Username *</label>
+                        <input type="text" name="username" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Password *</label>
+                        <input type="text" name="password" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Subscription Days</label>
+                        <input type="number" name="subscription_days" value="30" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeModal('createUserModal')" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">Create Account</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approve Modal -->
+    <div id="approveModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Approve Request</h3>
+                <form id="approveForm" method="POST" action="">
+                    <input type="hidden" name="action" value="approve">
+                    <p class="text-sm text-gray-600 mb-4">Approving request for: <strong id="approveName"></strong></p>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Notes (optional)</label>
+                        <textarea name="notes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Add any notes..."></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeModal('approveModal')" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Approve</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Modal -->
+    <div id="rejectModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Reject Request</h3>
+                <form id="rejectForm" method="POST" action="">
+                    <input type="hidden" name="action" value="reject">
+                    <p class="text-sm text-gray-600 mb-4">Rejecting request for: <strong id="rejectName"></strong></p>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Reason for rejection (optional)</label>
+                        <textarea name="notes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500" placeholder="Reason for rejection..."></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeModal('rejectModal')" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">Reject</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const now = new Date();
+        
+        function showCreateUserModal(requestId, name) {
+            document.getElementById('createUserName').textContent = name;
+            document.getElementById('createUserForm').action = `/admin/admission-request/${requestId}/process`;
+            document.getElementById('createUserModal').classList.remove('hidden');
+        }
+        
+        function showApproveModal(requestId, name) {
+            document.getElementById('approveName').textContent = name;
+            document.getElementById('approveForm').action = `/admin/admission-request/${requestId}/process`;
+            document.getElementById('approveModal').classList.remove('hidden');
+        }
+        
+        function showRejectModal(requestId, name) {
+            document.getElementById('rejectName').textContent = name;
+            document.getElementById('rejectForm').action = `/admin/admission-request/${requestId}/process`;
+            document.getElementById('rejectModal').classList.remove('hidden');
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+        
+        function confirmLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '{{ url_for("logout") }}';
+            }
+        }
+        
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const modals = ['createUserModal', 'approveModal', 'rejectModal'];
+            modals.forEach(modalId => {
+                const modal = document.getElementById(modalId);
+                if (event.target == modal) {
+                    closeModal(modalId);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

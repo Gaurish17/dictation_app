@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Practice History - Learning Hub</title>
+        <!-- Preconnect to CDN for faster resource loading -->
+
+        <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+        <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+
+        
+
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <style>
+
+            /* Critical CSS to prevent FOUC */
+
+            svg {
+
+                width: 1.5rem;
+
+                height: 1.5rem;
+
+                display: inline-block;
+
+                vertical-align: middle;
+
+            }
+
+            
+
+            body {
+
+                margin: 0;
+
+                padding: 0;
+
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+            }
+
+            
+
+            * {
+
+                box-sizing: border-box;
+
+            }
+
+            
+
+    
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="w-full px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('practice_selection') }}" class="inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                        <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        ← Back to Practice Hub
+                    </a>
+                    <h1 class="text-3xl font-bold text-gray-800">📚 My Practice History</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-3 bg-gray-100 px-4 py-2 rounded-xl">
+                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                            <span class="text-white text-sm font-bold">{{ user.username[0].upper() }}</span>
+                        </div>
+                        <div>
+                            <div class="font-medium text-gray-800">{{ user.username }}</div>
+                            <div class="text-xs text-gray-600">Student</div>
+                        </div>
+                    </div>
+                    <a href="#" onclick="confirmLogout()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-lg font-medium">
+                        🚪 Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="w-full px-4 py-8">
+        <!-- Summary Statistics -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Total Attempts</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-2">{{ summary_stats.total_dictation_attempts + summary_stats.total_typing_attempts }}</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Dictation Attempts</p>
+                        <p class="text-3xl font-bold text-blue-600 mt-2">{{ summary_stats.total_dictation_attempts }}</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mt-2">Avg: {{ "%.1f"|format(summary_stats.avg_dictation_accuracy) }}%</p>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Typing Attempts</p>
+                        <p class="text-3xl font-bold text-green-600 mt-2">{{ summary_stats.total_typing_attempts }}</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mt-2">Avg: {{ "%.1f"|format(summary_stats.avg_typing_wpm) }} WPM</p>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Best Performance</p>
+                        <p class="text-2xl font-bold text-yellow-600 mt-2">{{ "%.1f"|format(summary_stats.best_dictation_accuracy) }}%</p>
+                    </div>
+                    <div class="w-12 h-12 bg-yellow-500 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mt-2">{{ "%.1f"|format(summary_stats.best_typing_wpm) }} WPM</p>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 mb-8">
+            <div class="border-b border-gray-200">
+                <nav class="flex -mb-px">
+                    <button onclick="showTab('dictation')" id="dictationTab" class="tab-button flex-1 py-4 px-6 text-center border-b-2 font-medium text-sm transition-all duration-200 border-blue-500 text-blue-600">
+                        🎵 Dictation History ({{ dictation_history|length }})
+                    </button>
+                    <button onclick="showTab('typing')" id="typingTab" class="tab-button flex-1 py-4 px-6 text-center border-b-2 font-medium text-sm transition-all duration-200 border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300">
+                        ⚡ Typing History ({{ typing_history|length }})
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Dictation History Tab -->
+        <div id="dictationContent" class="tab-content">
+            {% if dictation_history %}
+                <div class="space-y-4">
+                    {% for attempt in dictation_history %}
+                    <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                        <div class="p-6">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-3 mb-2">
+                                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                                            Attempt #{{ attempt.attempt_number }}
+                                        </span>
+                                        <h3 class="text-lg font-bold text-gray-800">{{ attempt.audio_title }}</h3>
+                                    </div>
+                                    <p class="text-sm text-gray-600">
+                                        📅 {{ attempt.submitted_at|format_datetime('%d %B %Y at %I:%M %p') }}
+                                    </p>
+                                </div>
+                                <button onclick="toggleDetails('dictation-{{ attempt.id }}')" class="text-blue-600 hover:text-blue-800 font-medium text-sm">
+                                    <span id="dictation-{{ attempt.id }}-toggle">Show Details ▼</span>
+                                </button>
+                            </div>
+
+                            <!-- Essential Stats -->
+                            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">Total Words</p>
+                                    <p class="text-xl font-bold text-gray-800">{{ attempt.total_words }}</p>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">Typed Words</p>
+                                    <p class="text-xl font-bold text-blue-600">{{ attempt.words_typed }}</p>
+                                </div>
+                                <div class="bg-green-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">Correct</p>
+                                    <p class="text-xl font-bold text-green-600">{{ attempt.words_correct }}</p>
+                                </div>
+                                <div class="bg-red-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">Errors</p>
+                                    <p class="text-xl font-bold text-red-600">{{ attempt.words_wrong }}</p>
+                                </div>
+                                <div class="bg-purple-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">Accuracy</p>
+                                    <p class="text-xl font-bold text-purple-600">{{ "%.1f"|format(attempt.accuracy_percentage) }}%</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between pt-3 border-t border-gray-200">
+                                <div class="text-sm text-gray-600">
+                                    ⏱️ Time: {{ (attempt.time_taken // 60)|int }}m {{ attempt.time_taken % 60 }}s
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    {% if attempt.accuracy_percentage >= 90 %}
+                                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">🌟 Excellent</span>
+                                    {% elif attempt.accuracy_percentage >= 75 %}
+                                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">👍 Good</span>
+                                    {% elif attempt.accuracy_percentage >= 60 %}
+                                        <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">📈 Improving</span>
+                                    {% else %}
+                                        <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">💪 Keep Practicing</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Detailed View (Hidden by default) -->
+                            <div id="dictation-{{ attempt.id }}-details" class="hidden mt-4 pt-4 border-t border-gray-200">
+                                <h4 class="text-sm font-semibold text-gray-800 mb-3">📝 Your Transcription with Marked Errors</h4>
+                                
+                                {% if attempt.enhanced_comparison %}
+                                    <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                                        <div class="text-sm leading-relaxed">
+                                            {% for word_data in attempt.enhanced_comparison %}
+                                                {% if word_data.type == 'correct' %}
+                                                    <span class="text-green-700 bg-green-50 px-1 rounded" title="Correct">{{ word_data.display_word }}</span>
+                                                {% elif word_data.type == 'wrong' %}
+                                                    <span class="text-red-700 bg-red-100 px-1 rounded font-medium" title="Error: Should be '{{ word_data.reference_word }}'">{{ word_data.typed_word }}</span>
+                                                {% elif word_data.type == 'missed' %}
+                                                    <span class="text-orange-700 bg-orange-100 px-1 rounded line-through" title="Missing word">{{ word_data.display_word }}</span>
+                                                {% elif word_data.type == 'extra' %}
+                                                    <span class="text-purple-700 bg-purple-100 px-1 rounded font-medium" title="Extra word (not in reference)">{{ word_data.display_word }}</span>
+                                                {% endif %}
+                                                {{ ' ' }}
+                                            {% endfor %}
+                                        </div>
+                                        
+                                        <div class="mt-4 pt-4 border-t border-gray-300">
+                                            <p class="text-xs font-semibold text-gray-700 mb-2">Legend:</p>
+                                            <div class="flex flex-wrap gap-3 text-xs">
+                                                <span class="flex items-center"><span class="w-3 h-3 bg-green-50 border border-green-300 rounded mr-1"></span> Correct</span>
+                                                <span class="flex items-center"><span class="w-3 h-3 bg-red-100 border border-red-300 rounded mr-1"></span> Wrong/Typo</span>
+                                                <span class="flex items-center"><span class="w-3 h-3 bg-orange-100 border border-orange-300 rounded mr-1"></span> Missing</span>
+                                                <span class="flex items-center"><span class="w-3 h-3 bg-purple-100 border border-purple-300 rounded mr-1"></span> Extra</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="grid md:grid-cols-2 gap-4">
+                                        <div class="bg-gray-50 rounded-lg p-4">
+                                            <p class="text-xs font-semibold text-gray-600 mb-2">Reference Text:</p>
+                                            <p class="text-sm text-gray-800 whitespace-pre-wrap">{{ attempt.reference_text[:300] }}{% if attempt.reference_text|length > 300 %}...{% endif %}</p>
+                                        </div>
+                                        <div class="bg-blue-50 rounded-lg p-4">
+                                            <p class="text-xs font-semibold text-gray-600 mb-2">Your Transcription:</p>
+                                            <p class="text-sm text-gray-800 whitespace-pre-wrap">{{ attempt.transcription[:300] if attempt.transcription }}{% if attempt.transcription and attempt.transcription|length > 300 %}...{% endif %}</p>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="bg-white rounded-xl shadow-lg p-12 text-center border border-gray-200">
+                    <div class="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">No Dictation History Yet</h3>
+                    <p class="text-gray-600 mb-6">Start practicing dictation to see your progress here</p>
+                    <a href="{{ url_for('dictation_practice') }}" class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-lg font-medium">
+                        Start Dictation Practice
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Typing History Tab -->
+        <div id="typingContent" class="tab-content hidden">
+            {% if typing_history %}
+                <div class="space-y-4">
+                    {% for attempt in typing_history %}
+                    <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                        <div class="p-6">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-3 mb-2">
+                                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
+                                            Attempt #{{ attempt.attempt_number }}
+                                        </span>
+                                        <h3 class="text-lg font-bold text-gray-800">{{ attempt.passage_title }}</h3>
+                                    </div>
+                                    <p class="text-sm text-gray-600">
+                                        📅 {{ attempt.submitted_at|format_datetime('%d %B %Y at %I:%M %p') }}
+                                    </p>
+                                </div>
+                                <button onclick="toggleDetails('typing-{{ attempt.id }}')" class="text-green-600 hover:text-green-800 font-medium text-sm">
+                                    <span id="typing-{{ attempt.id }}-toggle">Show Details ▼</span>
+                                </button>
+                            </div>
+
+                            <!-- Essential Stats -->
+                            <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">Total Words</p>
+                                    <p class="text-xl font-bold text-gray-800">{{ attempt.total_words }}</p>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">Typed Words</p>
+                                    <p class="text-xl font-bold text-green-600">{{ attempt.words_typed }}</p>
+                                </div>
+                                <div class="bg-green-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">Correct</p>
+                                    <p class="text-xl font-bold text-green-600">{{ attempt.words_correct }}</p>
+                                </div>
+                                <div class="bg-red-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">Errors</p>
+                                    <p class="text-xl font-bold text-red-600">{{ attempt.words_wrong }}</p>
+                                </div>
+                                <div class="bg-blue-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">WPM</p>
+                                    <p class="text-xl font-bold text-blue-600">{{ "%.1f"|format(attempt.wpm) }}</p>
+                                </div>
+                                <div class="bg-purple-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">Accuracy</p>
+                                    <p class="text-xl font-bold text-purple-600">{{ "%.1f"|format(attempt.accuracy_percentage) }}%</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between pt-3 border-t border-gray-200">
+                                <div class="text-sm text-gray-600">
+                                    ⏱️ Time: {{ (attempt.time_taken // 60)|int }}m {{ attempt.time_taken % 60 }}s
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    {% if attempt.wpm >= 60 and attempt.accuracy_percentage >= 90 %}
+                                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">🌟 Excellent</span>
+                                    {% elif attempt.wpm >= 40 and attempt.accuracy_percentage >= 75 %}
+                                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">👍 Good</span>
+                                    {% elif attempt.wpm >= 25 %}
+                                        <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">📈 Improving</span>
+                                    {% else %}
+                                        <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">💪 Keep Practicing</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Detailed View (Hidden by default) -->
+                            <div id="typing-{{ attempt.id }}-details" class="hidden mt-4 pt-4 border-t border-gray-200">
+                                <h4 class="text-sm font-semibold text-gray-800 mb-3">⌨️ Your Typed Text with Marked Errors</h4>
+                                
+                                {% if attempt.enhanced_comparison %}
+                                    <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                                        <div class="text-sm leading-relaxed">
+                                            {% for word_data in attempt.enhanced_comparison %}
+                                                {% if word_data.type == 'correct' %}
+                                                    <span class="text-green-700 bg-green-50 px-1 rounded" title="Correct">{{ word_data.display_word }}</span>
+                                                {% elif word_data.type == 'wrong' %}
+                                                    <span class="text-red-700 bg-red-100 px-1 rounded font-medium" title="Error: Should be '{{ word_data.reference_word }}'">{{ word_data.typed_word }}</span>
+                                                {% elif word_data.type == 'missed' %}
+                                                    <span class="text-orange-700 bg-orange-100 px-1 rounded line-through" title="Missing word">{{ word_data.display_word }}</span>
+                                                {% elif word_data.type == 'extra' %}
+                                                    <span class="text-purple-700 bg-purple-100 px-1 rounded font-medium" title="Extra word (not in reference)">{{ word_data.display_word }}</span>
+                                                {% endif %}
+                                                {{ ' ' }}
+                                            {% endfor %}
+                                        </div>
+                                        
+                                        <div class="mt-4 pt-4 border-t border-gray-300">
+                                            <p class="text-xs font-semibold text-gray-700 mb-2">Legend:</p>
+                                            <div class="flex flex-wrap gap-3 text-xs">
+                                                <span class="flex items-center"><span class="w-3 h-3 bg-green-50 border border-green-300 rounded mr-1"></span> Correct</span>
+                                                <span class="flex items-center"><span class="w-3 h-3 bg-red-100 border border-red-300 rounded mr-1"></span> Wrong/Typo</span>
+                                                <span class="flex items-center"><span class="w-3 h-3 bg-orange-100 border border-orange-300 rounded mr-1"></span> Missing</span>
+                                                <span class="flex items-center"><span class="w-3 h-3 bg-purple-100 border border-purple-300 rounded mr-1"></span> Extra</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="bg-gray-50 rounded-lg p-4">
+                                        <p class="text-xs font-semibold text-gray-600 mb-2">Your Typed Text:</p>
+                                        <p class="text-sm text-gray-800 whitespace-pre-wrap">{{ attempt.typed_text[:300] if attempt.typed_text }}{% if attempt.typed_text and attempt.typed_text|length > 300 %}...{% endif %}</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="bg-white rounded-xl shadow-lg p-12 text-center border border-gray-200">
+                    <div class="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">No Typing History Yet</h3>
+                    <p class="text-gray-600 mb-6">Start practicing typing to see your progress here</p>
+                    <a href="{{ url_for('typing_practice') }}" class="inline-block bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-lg font-medium">
+                        Start Typing Practice
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // Remove active styling from all tabs
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('border-blue-500', 'text-blue-600', 'border-green-500', 'text-green-600');
+                button.classList.add('border-transparent', 'text-gray-600');
+            });
+            
+            // Show selected tab and style button
+            if (tabName === 'dictation') {
+                document.getElementById('dictationContent').classList.remove('hidden');
+                document.getElementById('dictationTab').classList.remove('border-transparent', 'text-gray-600');
+                document.getElementById('dictationTab').classList.add('border-blue-500', 'text-blue-600');
+            } else {
+                document.getElementById('typingContent').classList.remove('hidden');
+                document.getElementById('typingTab').classList.remove('border-transparent', 'text-gray-600');
+                document.getElementById('typingTab').classList.add('border-green-500', 'text-green-600');
+            }
+        }
+
+        // Toggle attempt details
+        function toggleDetails(attemptId) {
+            const details = document.getElementById(attemptId + '-details');
+            const toggle = document.getElementById(attemptId + '-toggle');
+            
+            if (details.classList.contains('hidden')) {
+                details.classList.remove('hidden');
+                toggle.textContent = 'Hide Details ▲';
+            } else {
+                details.classList.add('hidden');
+                toggle.textContent = 'Show Details ▼';
+            }
+        }
+
+        // Logout confirmation
+        function confirmLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '{{ url_for("logout") }}';
+            }
+        }
+
+        // Initialize first tab
+        document.addEventListener('DOMContentLoaded', function() {
+            showTab('dictation');
+        });
+    </script>
+</body>
+</html>

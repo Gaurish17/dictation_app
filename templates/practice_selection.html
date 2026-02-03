@@ -4,7 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Practice Hub - Learning Management System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+        <!-- Preconnect to CDN for faster resource loading -->
+
+        <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+        <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+
+        
+
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <style>
+
+            /* Critical CSS to prevent FOUC */
+
+            svg {
+
+                width: 1.5rem;
+
+                height: 1.5rem;
+
+                display: inline-block;
+
+                vertical-align: middle;
+
+            }
+
+            
+
+            body {
+
+                margin: 0;
+
+                padding: 0;
+
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+            }
+
+            
+
+            * {
+
+                box-sizing: border-box;
+
+            }
+
+            
+
+    
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -242,26 +290,6 @@
                     Enhance your listening skills and typing accuracy by transcribing audio content. Perfect for developing professional transcription abilities.
                 </p>
                 
-                <div class="space-y-3 mb-8">
-                    <div class="flex items-center text-gray-600">
-                        <svg class="w-5 h-5 mr-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                        </svg>
-                        <span class="font-medium">Real-time accuracy tracking</span>
-                    </div>
-                    <div class="flex items-center text-gray-600">
-                        <svg class="w-5 h-5 mr-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                        </svg>
-                        <span class="font-medium">Multiple difficulty levels</span>
-                    </div>
-                    <div class="flex items-center text-gray-600">
-                        <svg class="w-5 h-5 mr-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                        </svg>
-                        <span class="font-medium">Timed challenges available</span>
-                    </div>
-                </div>
                 
                 <a href="{{ url_for('dictation_practice') }}" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-lg transition-all duration-300 shadow-lg text-center">
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,32 +318,143 @@
                     Build lightning-fast typing speed and accuracy with our comprehensive typing trainer. Features real-time feedback and progress tracking.
                 </p>
                 
-                <div class="space-y-3 mb-8">
-                    <div class="flex items-center text-gray-600">
-                        <svg class="w-5 h-5 mr-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                        </svg>
-                        <span class="font-medium">Live WPM calculation</span>
-                    </div>
-                    <div class="flex items-center text-gray-600">
-                        <svg class="w-5 h-5 mr-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                        </svg>
-                        <span class="font-medium">Character-by-character feedback</span>
-                    </div>
-                    <div class="flex items-center text-gray-600">
-                        <svg class="w-5 h-5 mr-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                        </svg>
-                        <span class="font-medium">Customizable difficulty modes</span>
-                    </div>
-                </div>
                 
                 <a href="{{ url_for('typing_practice') }}" class="block w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 rounded-lg transition-all duration-300 shadow-lg text-center">
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
                     Start Typing Practice
+                </a>
+            </div>
+        </div>
+
+        <!-- My Favourites Section -->
+        {% if favourite_dictations or favourite_typing %}
+        <div class="bg-white rounded-3xl p-8 mb-8 shadow-lg border border-gray-200">
+            <div class="flex items-center mb-8">
+                <div class="w-12 h-12 bg-pink-500 rounded-2xl flex items-center justify-center shadow-lg mr-4">
+                    <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-800">❤️ My Favourites</h2>
+                    <p class="text-gray-600">Quick access to your bookmarked practice materials</p>
+                </div>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Favourite Dictations -->
+                {% if favourite_dictations %}
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                        </svg>
+                        Dictation ({{ favourite_dictations|length }})
+                    </h3>
+                    <div class="space-y-3 max-h-64 overflow-y-auto">
+                        {% for audio, created_at in favourite_dictations %}
+                        <a href="{{ url_for('dictation_practice') }}?audio_id={{ audio.id }}" class="block bg-white rounded-lg p-4 hover:shadow-md transition-all duration-300 group">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors line-clamp-1">{{ audio.filename }}</h4>
+                                    <p class="text-sm text-gray-600 mt-1">
+                                        {% if audio.wpm %}
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                {{ audio.wpm }} WPM
+                                            </span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Favourite Typing Passages -->
+                {% if favourite_typing %}
+                <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        Typing ({{ favourite_typing|length }})
+                    </h3>
+                    <div class="space-y-3 max-h-64 overflow-y-auto">
+                        {% for passage, created_at in favourite_typing %}
+                        <a href="{{ url_for('typing_practice') }}?passage_id={{ passage.id }}" class="block bg-white rounded-lg p-4 hover:shadow-md transition-all duration-300 group">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-gray-800 group-hover:text-green-600 transition-colors line-clamp-1">{{ passage.title }}</h4>
+                                    <p class="text-sm text-gray-600 mt-1">
+                                        {% if passage.wpm %}
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                {{ passage.wpm }} WPM
+                                            </span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <svg class="w-5 h-5 text-gray-400 group-hover:text-green-600 transition-colors flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- If only one type has favourites, center it -->
+                {% if favourite_dictations and not favourite_typing %}
+                <div class="bg-gray-50 rounded-2xl p-6 flex items-center justify-center">
+                    <div class="text-center text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        <p class="text-sm">No favourite typing passages yet</p>
+                        <a href="{{ url_for('typing_practice') }}" class="text-green-600 hover:text-green-700 text-sm font-medium mt-2 inline-block">Browse typing practice →</a>
+                    </div>
+                </div>
+                {% elif favourite_typing and not favourite_dictations %}
+                <div class="bg-gray-50 rounded-2xl p-6 flex items-center justify-center">
+                    <div class="text-center text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                        </svg>
+                        <p class="text-sm">No favourite dictations yet</p>
+                        <a href="{{ url_for('dictation_practice') }}" class="text-blue-600 hover:text-blue-700 text-sm font-medium mt-2 inline-block">Browse dictation practice →</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- My Progress Section -->
+        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-3xl p-8 mb-8 shadow-lg text-white">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-16 h-16 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center shadow-lg mr-4">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-bold mb-2">📚 My Practice History</h2>
+                        <p class="text-white text-opacity-90">View all your past attempts with detailed analysis and error highlights</p>
+                    </div>
+                </div>
+                <a href="{{ url_for('user_history') }}" class="bg-white hover:bg-gray-100 text-purple-600 font-semibold px-8 py-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
+                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                    View History
                 </a>
             </div>
         </div>
@@ -360,13 +499,102 @@
                 </a>
             </div>
         </div>
+        
+        <!-- Telegram Community Section - Only Visible After Login -->
+        <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-3xl p-8 mb-8 shadow-lg border border-blue-200">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg mr-4">
+                        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-bold text-blue-800 mb-2">📱 Join Our Telegram Community</h2>
+                        <p class="text-blue-700">Stay connected with fellow students, get practice tips, schedules, and important announcements</p>
+                    </div>
+                </div>
+                <a href="https://t.me/+kOQizBLsi3A2MzJl" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl flex items-center">
+                    Join Group
+                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
 
     </div>
 
     <script>
-        // Simple JavaScript for interactions
+        // Session validation and security measures
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Practice selection page loaded');
+            
+            // Prevent browser caching
+            window.addEventListener('pageshow', function(event) {
+                if (event.persisted) {
+                    // Page was loaded from cache (back button)
+                    window.location.reload();
+                }
+            });
+            
+            // Disable browser back button functionality
+            history.pushState(null, null, window.location.href);
+            window.addEventListener('popstate', function(event) {
+                history.pushState(null, null, window.location.href);
+                alert('Please use the logout button to exit the application.');
+            });
+            
+            // Session validation - periodically check if user is still logged in
+            setInterval(function() {
+                fetch('{{ url_for("validate_session") }}', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                }).then(function(response) {
+                    if (response.status === 401) {
+                        // Session expired or invalid
+                        alert('Your session has expired. Please log in again.');
+                        window.location.href = '{{ url_for("student_login") }}';
+                    }
+                }).catch(function(error) {
+                    console.error('Session validation failed:', error);
+                    // On network error, also redirect to login for safety
+                    window.location.href = '{{ url_for("student_login") }}';
+                });
+            }, 30000); // Check every 30 seconds
+            
+            // Clear any stored form data when page loads
+            if (window.performance && performance.navigation.type === 1) {
+                // Page was refreshed
+                localStorage.clear();
+                sessionStorage.clear();
+            }
+        });
+        
+        // Logout confirmation function
+        function confirmLogout() {
+            if (confirm('Are you sure you want to logout? Any unsaved changes will be lost.')) {
+                // Clear any client-side storage before logout
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = '{{ url_for("logout") }}';
+            }
+        }
+        
+        // Prevent right-click context menu for additional security
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+        
+        // Disable F12, Ctrl+U, Ctrl+Shift+I, etc.
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F12' ||
+                (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+                (e.ctrlKey && e.shiftKey && e.key === 'C') ||
+                (e.ctrlKey && e.key === 'U')) {
+                e.preventDefault();
+                return false;
+            }
         });
     </script>
 </body>

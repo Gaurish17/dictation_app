@@ -4,12 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stenographix - Professional Dictation & Typing Practice</title>
+    
+    <!-- Preconnect to CDN for faster resource loading -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @keyframes gradient {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        /* Critical CSS to prevent FOUC */
+        svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        * {
+            box-sizing: border-box;
         }
         
         @keyframes float {
@@ -17,165 +34,196 @@
             50% { transform: translateY(-10px); }
         }
         
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+        .logo-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 1.5rem;
         }
         
-        .gradient-bg {
-            background: linear-gradient(-45deg, #1e3a8a, #3730a3, #5b21b6, #7c2d12);
-            background-size: 400% 400%;
-            animation: gradient 15s ease infinite;
-        }
-        
-        .glass-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .dark .glass-card {
-            background: rgba(17, 24, 39, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
         .floating-card {
-            animation: float 6s ease-in-out infinite;
+            animation: float 3s ease-in-out infinite;
         }
         
-        .hero-icon {
-            animation: pulse 4s ease-in-out infinite;
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
         }
         
-        /* Dark mode styles */
-        body.dark {
-            background: linear-gradient(-45deg, #1f2937, #111827, #374151, #4b5563) !important;
-            background-size: 400% 400% !important;
-            color: #f9fafb !important;
-            animation: gradient 15s ease infinite !important;
+        /* Elegant background with blur effect */
+        body {
+            position: relative;
+            overflow-x: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
         
-        .dark .text-gray-900 { color: #f9fafb !important; }
-        .dark .text-gray-800 { color: #f3f4f6 !important; }
-        .dark .text-gray-600 { color: #d1d5db !important; }
-        .dark .text-gray-700 { color: #d1d5db !important; }
-        .dark .text-gray-500 { color: #9ca3af !important; }
-        
-        .dark .bg-white {
-            background-color: #1f2937 !important;
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(168, 85, 247, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+            backdrop-filter: blur(100px);
+            z-index: -2;
         }
         
-        .dark .bg-gray-50 {
-            background-color: #111827 !important;
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: -1;
         }
         
-        .dark .border-gray-200,
-        .dark .border-gray-300 {
-            border-color: #374151 !important;
+        /* Glassmorphism effect */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
         
-        .dark .shadow-lg {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+        .glass-card-dark {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
         }
         
-
-        /* Better text contrast */
-        .text-contrast {
-            color: #1f2937;
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         
-        .dark .text-contrast {
-            color: #f9fafb;
+        /* Hover effects */
+        .hover-lift {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        .text-muted {
-            color: #6b7280;
+        .hover-lift:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.2);
         }
         
-        .dark .text-muted {
-            color: #9ca3af;
+        /* Button shine effect */
+        .btn-shine {
+            position: relative;
+            overflow: hidden;
         }
         
-        .device-check { display: none; }
+        .btn-shine::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn-shine:hover::before {
+            left: 100%;
+        }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen transition-all duration-300">
-    <!-- Theme Toggle Button -->
-    <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
-        <svg id="sun-icon" class="w-7 h-7 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"></path>
-        </svg>
-        <svg id="moon-icon" class="w-7 h-7 text-indigo-300 hidden" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
-        </svg>
-    </button>
-
-    <div class="w-full px-2 py-12">
+<body class="min-h-screen">
+    <div class="w-full px-4 py-8 md:py-12">
         <!-- Hero Section -->
-        <div class="text-center mb-16">
-            <div class="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg">
-                <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                </svg>
+        <div class="text-center mb-12 fade-in-up">
+            <div class="w-24 h-24 rounded-3xl overflow-hidden mx-auto mb-6 shadow-2xl floating-card">
+                <img src="{{ url_for('static', filename='images/logo.jpeg') }}" alt="Stenographix Logo" class="logo-image">
             </div>
-            <h1 class="text-5xl font-bold text-gray-800 mb-2">📝 Stenographix</h1>
-            <p class="text-lg text-gray-500 mb-6 italic">An initiative by @tachy_graphy</p>
-            <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">Professional dictation and typing practice platform designed for excellence</p>
+            <h1 class="text-5xl md:text-7xl font-extrabold gradient-text mb-3 tracking-tight">
+                Stenographix
+            </h1>
+            <p class="text-base text-gray-600 mb-4 italic font-medium">An initiative by @tachy_graphy</p>
+            <p class="text-xl md:text-2xl text-gray-700 mb-8 max-w-3xl mx-auto font-light leading-relaxed">
+                Master Dictation & Typing Skills with Professional Practice Platform
+            </p>
             
             <!-- Device Advisory -->
-            <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8 max-w-2xl mx-auto shadow-sm">
-                <div class="flex items-center justify-center">
-                    <div class="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center mr-3">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <p class="text-sm text-gray-800 font-medium">
-                        <strong>💡 Advisory:</strong> For the best experience, practice from a laptop or desktop computer.
-                    </p>
-                </div>
+            <div class="glass-card rounded-2xl p-4 max-w-2xl mx-auto shadow-lg hover-lift">
+                <p class="text-sm text-gray-700 text-center flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                    <span class="font-semibold">Best Experience:</span>
+                    <span class="ml-1">Use laptop or desktop for practice</span>
+                </p>
             </div>
         </div>
         
+        <!-- New Admission Request Button -->
+        <div class="text-center mb-12 fade-in-up">
+            <a href="{{ url_for('admission_request') }}"
+               class="inline-flex items-center bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-8 py-4 rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:transform hover:-translate-y-1 font-semibold text-lg btn-shine">
+                <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Request New Admission
+            </a>
+            <p class="text-sm text-gray-600 mt-3 font-medium">New user? Request access in minutes</p>
+        </div>
+        
         <!-- Login Options -->
-        <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-16">
+        <div class="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
             <!-- Student Login -->
-            <div class="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <div class="glass-card-dark rounded-3xl shadow-2xl p-8 hover-lift">
                 <div class="text-center mb-8">
-                    <div class="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                        <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-xl">
+                        <svg class="w-11 h-11 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                         </svg>
                     </div>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-3">👨‍🎓 Student Login</h2>
-                    <p class="text-gray-600">Access dictation and typing practice</p>
+                    <h2 class="text-3xl font-bold text-gray-800 mb-3">👨‍🎓 Student Login</h2>
+                    <p class="text-gray-600">Access your practice sessions</p>
                 </div>
                 
-                <div class="space-y-6">
+                <div class="space-y-5">
                     <a href="{{ url_for('student_login') }}"
-                       class="block w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-lg transition-all duration-300 font-semibold shadow-lg text-center">
+                       class="block w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white py-4 px-6 rounded-2xl transition-all duration-300 font-semibold shadow-lg text-center text-lg btn-shine">
                         <svg class="inline-block w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
                         </svg>
                         Student Sign In
                     </a>
                     
-                    <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                        <div class="grid grid-cols-1 gap-2 text-xs text-gray-600 text-center">
-                            <p class="flex items-center justify-center">
-                                <svg class="w-3 h-3 mr-1 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <div class="glass-card rounded-2xl p-5">
+                        <div class="grid grid-cols-1 gap-3 text-sm text-gray-700">
+                            <p class="flex items-center justify-center font-medium">
+                                <svg class="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                 </svg>
                                 Dictation Practice
                             </p>
-                            <p class="flex items-center justify-center">
-                                <svg class="w-3 h-3 mr-1 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <p class="flex items-center justify-center font-medium">
+                                <svg class="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                 </svg>
                                 Typing Practice
                             </p>
-                            <p class="flex items-center justify-center">
-                                <svg class="w-3 h-3 mr-1 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <p class="flex items-center justify-center font-medium">
+                                <svg class="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                 </svg>
                                 Progress Tracking
@@ -186,43 +234,43 @@
             </div>
             
             <!-- Admin Login -->
-            <div class="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <div class="glass-card-dark rounded-3xl shadow-2xl p-8 hover-lift">
                 <div class="text-center mb-8">
-                    <div class="w-20 h-20 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                        <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-600 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-xl">
+                        <svg class="w-11 h-11 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         </svg>
                     </div>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-3">👨‍💼 Admin Panel</h2>
-                    <p class="text-gray-600">Manage users and content</p>
+                    <h2 class="text-3xl font-bold text-gray-800 mb-3">👨‍💼 Admin Panel</h2>
+                    <p class="text-gray-600">Manage platform & users</p>
                 </div>
                 
-                <div class="space-y-6">
+                <div class="space-y-5">
                     <a href="{{ url_for('admin_login') }}"
-                       class="block w-full bg-purple-600 hover:bg-purple-700 text-white py-4 px-6 rounded-lg transition-all duration-300 font-semibold shadow-lg text-center">
+                       class="block w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-4 px-6 rounded-2xl transition-all duration-300 font-semibold shadow-lg text-center text-lg btn-shine">
                         <svg class="inline-block w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013 3v1"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
                         </svg>
                         Admin Sign In
                     </a>
                     
-                    <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
-                        <div class="grid grid-cols-1 gap-2 text-xs text-gray-600 text-center">
-                            <p class="flex items-center justify-center">
-                                <svg class="w-3 h-3 mr-1 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                    <div class="glass-card rounded-2xl p-5">
+                        <div class="grid grid-cols-1 gap-3 text-sm text-gray-700">
+                            <p class="flex items-center justify-center font-medium">
+                                <svg class="w-4 h-4 mr-2 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                 </svg>
                                 User Management
                             </p>
-                            <p class="flex items-center justify-center">
-                                <svg class="w-3 h-3 mr-1 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                            <p class="flex items-center justify-center font-medium">
+                                <svg class="w-4 h-4 mr-2 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                 </svg>
                                 Content Upload
                             </p>
-                            <p class="flex items-center justify-center">
-                                <svg class="w-3 h-3 mr-1 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                            <p class="flex items-center justify-center font-medium">
+                                <svg class="w-4 h-4 mr-2 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                 </svg>
                                 Analytics & Reports
@@ -235,56 +283,56 @@
         
         <!-- Features Section -->
         <div class="max-w-6xl mx-auto mb-16">
-            <div class="text-center mb-12">
-                <h3 class="text-3xl font-bold text-gray-800 mb-4">🚀 Platform Features</h3>
-                <p class="text-gray-600 text-lg">Comprehensive tools for modern learning</p>
+            <div class="text-center mb-10">
+                <h3 class="text-3xl md:text-4xl font-bold gradient-text mb-3">🚀 Key Features</h3>
+                <p class="text-gray-600 text-lg">Everything you need to excel</p>
             </div>
             
             <div class="grid md:grid-cols-3 gap-8">
-                <div class="bg-white rounded-xl p-8 shadow-lg border border-gray-200">
+                <div class="glass-card-dark rounded-3xl p-8 shadow-xl hover-lift">
                     <div class="text-center">
-                        <div class="w-16 h-16 bg-green-600 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg">
+                            <svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
                             </svg>
                         </div>
                         <h4 class="text-xl font-bold text-gray-800 mb-3">🎵 Audio Dictation</h4>
-                        <p class="text-gray-600 text-sm leading-relaxed">Listen to audio files and improve your transcription accuracy with real-time feedback and advanced scoring systems.</p>
+                        <p class="text-gray-600">Improve transcription with real-time feedback and advanced scoring</p>
                     </div>
                 </div>
                 
-                <div class="bg-white rounded-xl p-8 shadow-lg border border-gray-200">
+                <div class="glass-card-dark rounded-3xl p-8 shadow-xl hover-lift">
                     <div class="text-center">
-                        <div class="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg">
+                            <svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
                             </svg>
                         </div>
                         <h4 class="text-xl font-bold text-gray-800 mb-3">⚡ Typing Practice</h4>
-                        <p class="text-gray-600 text-sm leading-relaxed">Practice typing with passages and track your speed, accuracy, and improvement over time with comprehensive analytics.</p>
+                        <p class="text-gray-600">Track speed, accuracy, and improvement with comprehensive analytics</p>
                     </div>
                 </div>
                 
-                <div class="bg-white rounded-xl p-8 shadow-lg border border-gray-200">
+                <div class="glass-card-dark rounded-3xl p-8 shadow-xl hover-lift">
                     <div class="text-center">
-                        <div class="w-16 h-16 bg-orange-600 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg">
+                            <svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                             </svg>
                         </div>
                         <h4 class="text-xl font-bold text-gray-800 mb-3">📊 Progress Analytics</h4>
-                        <p class="text-gray-600 text-sm leading-relaxed">Track your progress with detailed analytics, leaderboards, and comprehensive performance insights to monitor growth.</p>
+                        <p class="text-gray-600">Detailed analytics, leaderboards, and performance insights</p>
                     </div>
                 </div>
             </div>
         </div>
         
         <!-- Social Media Section -->
-        <div class="max-w-2xl mx-auto mb-8">
+        <div class="max-w-2xl mx-auto mb-10">
             <div class="text-center">
-                <h3 class="text-xl font-bold text-gray-800 mb-4">📱 Follow Us</h3>
-                <a href="https://www.instagram.com/tachy_graphy?igsh=MW1jdTR4amw2cmw1aw==" target="_blank" class="inline-flex items-center bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-pink-500/25 hover:transform hover:-translate-y-1 font-medium">
-                    <svg class="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 24 24">
+                <h3 class="text-2xl font-bold gradient-text mb-5">📱 Follow Us</h3>
+                <a href="https://www.instagram.com/tachy_graphy?igsh=MW1jdTR4amw2cmw1aw==" target="_blank" class="inline-flex items-center bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:from-pink-600 hover:via-purple-700 hover:to-indigo-700 text-white px-8 py-4 rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:transform hover:-translate-y-1 font-semibold text-lg btn-shine">
+                    <svg class="w-7 h-7 mr-3" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12.017 0C8.396 0 7.929.013 6.71.072 5.493.131 4.73.333 4.058.63c-.692.3-1.276.703-1.858 1.284C1.618 2.496 1.215 3.08.915 3.772.618 4.444.416 5.207.357 6.424.298 7.643.285 8.11.285 11.731c0 3.622.013 4.089.072 5.308.059 1.217.261 1.98.558 2.652.3.692.703 1.276 1.284 1.858.582.582 1.166.985 1.858 1.284.672.297 1.435.499 2.652.558 1.219.059 1.686.072 5.308.072 3.622 0 4.089-.013 5.308-.072 1.217-.059 1.98-.261 2.652-.558.692-.3 1.276-.703 1.858-1.284.582-.582.985-1.166 1.284-1.858.297-.672.499-1.435.558-2.652.059-1.219.072-1.686.072-5.308 0-3.622-.013-4.089-.072-5.308-.059-1.217-.261-1.98-.558-2.652-.3-.692-.703-1.276-1.284-1.858C20.791 1.618 20.207 1.215 19.515.915c-.672-.297-1.435-.499-2.652-.558C15.644.013 15.177 0 11.555 0h.462zm-.405 2.16c.362-.003.762-.003 1.405-.003 3.56 0 3.983.013 5.384.071 1.207.055 1.885.249 2.325.413.584.227.999.498 1.436.935.437.437.708.852.935 1.436.164.44.358 1.118.413 2.325.058 1.401.071 1.824.071 5.384s-.013 3.983-.071 5.384c-.055 1.207-.249 1.885-.413 2.325-.227.584-.498.999-.935 1.436-.437.437-.852.708-1.436.935-.44.164-1.118.358-2.325.413-1.401.058-1.824.071-5.384.071s-3.983-.013-5.384-.071c-1.207-.055-1.885-.249-2.325-.413-.584-.227-.999-.498-1.436-.935-.437-.437-.708-.852-.935-1.436-.164-.44-.358-1.118-.413-2.325C2.173 15.738 2.16 15.315 2.16 11.755s.013-3.983.071-5.384c.055-1.207.249-1.885.413-2.325.227-.584.498-.999.935-1.436.437-.437.852-.708 1.436-.935.44-.164 1.118-.358 2.325-.413 1.226-.056 1.7-.068 4.372-.07zm8.556 1.963c-.884 0-1.6-.716-1.6-1.6s.716-1.6 1.6-1.6 1.6.716 1.6 1.6-.716 1.6-1.6 1.6zm-7.439 1.399c-3.739 0-6.77 3.031-6.77 6.77s3.031 6.77 6.77 6.77 6.77-3.031 6.77-6.77-3.031-6.77-6.77-6.77zm0 2.16c2.549 0 4.61 2.061 4.61 4.61s-2.061 4.61-4.61 4.61-4.61-2.061-4.61-4.61 2.061-4.61 4.61-4.61z"/>
                     </svg>
                     Follow @tachy_graphy
@@ -293,41 +341,14 @@
         </div>
         
         <!-- Security Notice -->
-        <div class="max-w-2xl mx-auto">
-            <div class="bg-red-50 border border-red-200 rounded-xl p-6 shadow-lg">
+        <div class="max-w-3xl mx-auto">
+            <div class="glass-card rounded-2xl p-6 shadow-lg border-l-4 border-red-400">
                 <div class="flex items-start">
-                    <div class="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center mr-4 mt-1">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                        </svg>
-                    </div>
+                    <svg class="w-6 h-6 text-red-500 mr-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
                     <div>
-                        <h5 class="text-sm font-bold text-gray-800 mb-2">🔒 Security Notice</h5>
-                        <p class="text-xs text-gray-600 leading-relaxed">
-                            Each user account is limited to one device login. Multiple device access will result in automatic account lockdown for security purposes. Please ensure you logout properly when switching devices.
+                        <h5 class="text-base font-bold text-gray-800 mb-2">🔒 Security Notice</h5>
+                        <p class="text-sm text-gray-700 leading-relaxed">
+                            One device per account. Multiple device access triggers automatic lockdown.
                         </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Simple JavaScript for better interactions -->
-    <script>
-    // Add hover effects and smooth scrolling
-    document.addEventListener('DOMContentLoaded', function() {
-        // Add smooth scrolling to anchor links
-        const links = document.querySelectorAll('a[href^="#"]');
-        links.forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth' });
-                }
-            });
-        });
-    });
-    </script>
-</body>
-</html>

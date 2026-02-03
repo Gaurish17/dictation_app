@@ -13,10 +13,10 @@ class Config:
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB max file size
     
     # Admin contact configuration
-    ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@localhost')
-    ADMIN_PHONE = os.environ.get('ADMIN_PHONE', '+1234567890')
-    ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
-    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
+    ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'suyogsudrik1996@gmail.com')
+    ADMIN_PHONE = os.environ.get('ADMIN_PHONE', '+917756094286')
+    ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME')
+    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD')
     
     # Email configuration
     MAIL_SERVER = os.environ.get('MAIL_SERVER', 'localhost')
@@ -52,7 +52,8 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
-    PERMANENT_SESSION_LIFETIME = 3600  # 1 hour
+    # Extended session lifetime to prevent mid-practice logouts (8 hours)
+    PERMANENT_SESSION_LIFETIME = 28800  # 8 hours (28800 seconds)
     
     # File upload security
     MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 52428800))  # 50MB
@@ -65,11 +66,10 @@ class ProductionConfig(Config):
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
     LOG_FILE = os.environ.get('LOG_FILE', 'app.log')
     
-    # Performance settings
+    # Performance settings - SQLite compatible
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
-        'pool_recycle': 300,
-        'connect_args': {'connect_timeout': 10}
+        'pool_recycle': 300
     }
 
 class TestConfig(Config):

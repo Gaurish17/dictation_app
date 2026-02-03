@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Admission Request - Stenographix</title>
+        <!-- Preconnect to CDN for faster resource loading -->
+
+        <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+        <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+
+        
+
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <style>
+
+            /* Critical CSS to prevent FOUC */
+
+            svg {
+
+                width: 1.5rem;
+
+                height: 1.5rem;
+
+                display: inline-block;
+
+                vertical-align: middle;
+
+            }
+
+            
+
+            body {
+
+                margin: 0;
+
+                padding: 0;
+
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+            }
+
+            
+
+            * {
+
+                box-sizing: border-box;
+
+            }
+
+            
+
+    
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="w-full px-4 py-12">
+        <!-- Back Button -->
+        <div class="max-w-2xl mx-auto mb-6">
+            <a href="{{ url_for('index') }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Home
+            </a>
+        </div>
+
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+            </div>
+            <h1 class="text-4xl font-bold text-gray-800 mb-3">📝 New Admission Request</h1>
+            <p class="text-gray-600 text-lg">Request access to Stenographix platform</p>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="max-w-2xl mx-auto mb-6">
+                        {% if category == 'success' %}
+                            <div class="bg-green-50 border-l-4 border-green-400 text-green-800 px-6 py-4 rounded-lg shadow-lg">
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span class="font-medium">{{ message }}</span>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="bg-red-50 border-l-4 border-red-400 text-red-800 px-6 py-4 rounded-lg shadow-lg">
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 mr-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span class="font-medium">{{ message }}</span>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Form -->
+        <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <form method="POST" action="{{ url_for('admission_request') }}" class="space-y-6">
+                <!-- Full Name -->
+                <div>
+                    <label for="full_name" class="block text-sm font-medium text-gray-700 mb-2">
+                        Full Name <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="full_name" name="full_name" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="Enter your full name">
+                </div>
+
+                <!-- State and District -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="state" class="block text-sm font-medium text-gray-700 mb-2">
+                            State <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" id="state" name="state" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Your state">
+                    </div>
+                    <div>
+                        <label for="district" class="block text-sm font-medium text-gray-700 mb-2">
+                            District <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" id="district" name="district" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Your district">
+                    </div>
+                </div>
+
+                <!-- Contact Number and Email -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="contact_number" class="block text-sm font-medium text-gray-700 mb-2">
+                            Contact Number <span class="text-red-500">*</span>
+                        </label>
+                        <input type="tel" id="contact_number" name="contact_number" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="+91 1234567890">
+                        <p class="text-xs text-gray-500 mt-1">Include country code</p>
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                            Email Address <span class="text-red-500">*</span>
+                        </label>
+                        <input type="email" id="email" name="email" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="your.email@example.com">
+                        <p class="text-xs text-gray-500 mt-1">For communication</p>
+                    </div>
+                </div>
+
+                <!-- Date of Birth -->
+                <div>
+                    <label for="date_of_birth" class="block text-sm font-medium text-gray-700 mb-2">
+                        Date of Birth <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" id="date_of_birth" name="date_of_birth" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <!-- Purpose/Exam -->
+                <div>
+                    <label for="purpose" class="block text-sm font-medium text-gray-700 mb-2">
+                        Purpose/Exam for Access <span class="text-red-500">*</span>
+                    </label>
+                    <textarea id="purpose" name="purpose" rows="4" required
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Please describe the exam or purpose for which you need access to the platform (e.g., SSC Stenographer, Court Stenographer, etc.)"></textarea>
+                </div>
+
+                <!-- Information Note -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div class="text-sm text-gray-700">
+                            <p class="font-medium mb-1">📋 What happens next?</p>
+                            <ul class="list-disc list-inside space-y-1 text-gray-600">
+                                <li>Your request will be reviewed by our admin team</li>
+                                <li>You'll be contacted via the provided phone number</li>
+                                <li>If approved, you'll receive your login credentials</li>
+                                <li>All requests are stored permanently in our records</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end space-x-4">
+                    <a href="{{ url_for('index') }}" 
+                       class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-all duration-300">
+                        Cancel
+                    </a>
+                    <button type="submit"
+                            class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-lg transition-all duration-300 hover:shadow-xl">
+                        Submit Request
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="max-w-2xl mx-auto mt-8 text-center">
+            <p class="text-sm text-gray-600">
+                Questions? Follow us on 
+                <a href="https://www.instagram.com/tachy_graphy?igsh=MW1jdTR4amw2cmw1aw==" target="_blank" 
+                   class="text-blue-600 hover:text-blue-800 font-medium">@tachy_graphy</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

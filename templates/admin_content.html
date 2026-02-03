@@ -4,7 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Content Management - Admin Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+        <!-- Preconnect to CDN for faster resource loading -->
+
+        <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+        <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+
+        
+
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <style>
+
+            /* Critical CSS to prevent FOUC */
+
+            svg {
+
+                width: 1.5rem;
+
+                height: 1.5rem;
+
+                display: inline-block;
+
+                vertical-align: middle;
+
+            }
+
+            
+
+            body {
+
+                margin: 0;
+
+                padding: 0;
+
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+            }
+
+            
+
+            * {
+
+                box-sizing: border-box;
+
+            }
+
+            
+
+    
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Navigation Bar -->
@@ -12,11 +60,11 @@
         <div class="w-full px-2 py-4">
             <div class="flex justify-between items-center">
                 <div class="flex items-center space-x-4">
-                    <a href="{{ url_for('admin_dashboard') }}" class="text-blue-600 hover:text-blue-800 transition-colors duration-300 font-medium">
-                        <svg class="h-6 w-6 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <a href="{{ url_for('admin_dashboard') }}" class="inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-medium rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                        <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
-                        Back to Dashboard
+                        ← Back to Dashboard
                     </a>
                     <h1 class="text-3xl font-bold text-gray-800">📚 Content Management</h1>
                 </div>
@@ -95,7 +143,7 @@
                                         <h3 class="font-medium text-gray-800">{{ audio.title }}</h3>
                                         <p class="text-sm text-gray-600">{{ audio.filename }}</p>
                                         <p class="text-xs text-gray-500">
-                                            Uploaded: {{ audio.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                            Uploaded: {{ audio.created_at|format_datetime('%d-%m-%Y %I:%M %p') }}
                                         </p>
                                         {% if audio.reference_text %}
                                             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">
@@ -169,7 +217,7 @@
                                         </p>
                                         <div class="flex space-x-4 mt-2 text-xs text-gray-500">
                                             <span>Words: {{ passage.word_count }}</span>
-                                            <span>Created: {{ passage.created_at.strftime('%Y-%m-%d') }}</span>
+                                            <span>Created: {{ passage.created_at|format_date('%d-%m-%Y') }}</span>
                                         </div>
                                     </div>
                                     <div class="ml-4 flex-shrink-0">

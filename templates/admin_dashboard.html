@@ -4,8 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Stenographix</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
+        <!-- Preconnect to CDN for faster resource loading -->
+
+        <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+        <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+
+        
+
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <style>
+
+            /* Critical CSS to prevent FOUC */
+
+            svg {
+
+                width: 1.5rem;
+
+                height: 1.5rem;
+
+                display: inline-block;
+
+                vertical-align: middle;
+
+            }
+
+            
+
+            body {
+
+                margin: 0;
+
+                padding: 0;
+
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+            }
+
+            
+
+            * {
+
+                box-sizing: border-box;
+
+            }
+
+            
+
+    
         @keyframes gradient {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
@@ -250,6 +297,40 @@
             </div>
         </div>
 
+        <!-- Pending Admission Requests Alert -->
+        {% if pending_requests %}
+        <div class="bg-blue-50 border-l-4 border-blue-400 rounded-xl p-6 mb-8 shadow-lg">
+            <div class="flex items-center mb-4">
+                <svg class="h-6 w-6 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <h3 class="text-xl font-bold text-blue-800">📋 New Admission Requests ({{ pending_requests|length }})</h3>
+            </div>
+            <div class="space-y-3">
+                {% for req in pending_requests[:5] %}
+                <div class="flex justify-between items-center bg-white rounded-lg p-4 border border-blue-200 shadow-sm">
+                    <div>
+                        <span class="font-medium text-gray-900">{{ req.full_name }}</span>
+                        <span class="text-sm text-gray-600 ml-2">{{ req.contact_number }}</span>
+                        <p class="text-xs text-gray-500 mt-1">{{ req.district }}, {{ req.state }} • Submitted: {{ req.created_at|format_date('%d-%m-%Y') }}</p>
+                    </div>
+                    <a href="{{ url_for('admin_admission_requests') }}"
+                       class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-all duration-300 shadow-md font-medium">
+                        📋 Review
+                    </a>
+                </div>
+                {% endfor %}
+                {% if pending_requests|length > 5 %}
+                <div class="text-center">
+                    <a href="{{ url_for('admin_admission_requests') }}" class="text-blue-600 hover:text-blue-800 font-medium text-sm">
+                        View all {{ pending_requests|length }} requests →
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Quick Actions -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
@@ -296,6 +377,9 @@
                     <a href="{{ url_for('admin_export') }}" class="block w-full bg-red-600 hover:bg-red-700 text-white py-3 px-6 rounded-lg transition-all duration-300 text-center font-medium shadow-lg">
                         💾 Export Data
                     </a>
+                    <a href="{{ url_for('admin_admission_requests') }}" class="block w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-lg transition-all duration-300 text-center font-medium shadow-lg">
+                        📋 Admission Requests
+                    </a>
                 </div>
             </div>
         </div>
@@ -313,7 +397,7 @@
                 {% for user in expiring_soon %}
                 <div class="flex justify-between items-center bg-white rounded-lg p-4 border border-yellow-200 shadow-sm">
                     <span class="font-medium text-gray-900">{{ user.username }}</span>
-                    <span class="text-sm text-gray-600">Expires: {{ user.subscription_end.strftime('%Y-%m-%d') }}</span>
+                    <span class="text-sm text-gray-600">Expires: {{ user.subscription_end|format_date('%d-%m-%Y') }}</span>
                     <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" 
                        class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm transition-all duration-300 shadow-md font-medium">
                         🔄 Extend
@@ -339,7 +423,7 @@
                 <div class="space-y-3">
                     <p class="text-gray-600"><strong class="text-gray-800">Default Subscription:</strong> 30 days</p>
                     <p class="text-gray-600"><strong class="text-gray-800">Device Restriction:</strong> 1 device per student</p>
-                    <p class="text-gray-600"><strong class="text-gray-800">Session Timeout:</strong> 15 minutes</p>
+                    <p class="text-gray-600"><strong class="text-gray-800">Session Timeout:</strong> 47 minutes</p>
                 </div>
             </div>
         </div>
