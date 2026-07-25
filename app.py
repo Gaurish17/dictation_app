@@ -2093,10 +2093,38 @@ def dictation_practice():
     all_wpms = db.session.query(AudioFile.wpm).distinct().filter(AudioFile.wpm.isnot(None)).order_by(AudioFile.wpm).all()
     available_wpms = [wpm[0] for wpm in all_wpms if wpm[0]]
     
+    # Build per-WPM-speed completion stats for this user: how many passages
+    # in each speed bucket they've completed at least once vs the total available
+    speed_progress = []
+    for wpm_value in available_wpms:
+        total_in_section = AudioFile.query.filter(
+            AudioFile.wpm == wpm_value,
+            AudioFile.reference_text.isnot(None)
+        ).count()
+
+        completed_in_section = db.session.query(DictationAttempt.audio_id).join(
+            AudioFile, DictationAttempt.audio_id == AudioFile.id
+        ).filter(
+            DictationAttempt.user_id == session['user_id'],
+            AudioFile.wpm == wpm_value,
+            DictationAttempt.submitted_at.isnot(None)
+        ).distinct().count()
+
+        percentage = round((completed_in_section / total_in_section) * 100) if total_in_section else 0
+
+        speed_progress.append({
+            'wpm': wpm_value,
+            'completed': completed_in_section,
+            'total': total_in_section,
+            'pending': max(0, total_in_section - completed_in_section),
+            'percentage': percentage
+        })
+
     return render_template('dictation_practice.html',
                          audio_files=available_files,
                          available_wpms=available_wpms,
-                         current_wpm_filter=wpm_filter)
+                         current_wpm_filter=wpm_filter,
+                         speed_progress=speed_progress)
 
 @app.route('/dictation-practice-advanced/<int:audio_id>')
 @login_required
@@ -2168,6 +2196,7 @@ def submit_dictation_practice():
         # Store minimal results in session to avoid cookie size limit
         session['dictation_results'] = {
             'attempt_id': attempt.id,  # Just store the attempt ID
+            'audio_id': audio_file.id,
             'audio_title': audio_file.title,
             'words_typed': comparison_result['typed_words'],
             'words_correct': comparison_result['words_correct'],
@@ -2204,7 +2233,14 @@ def dictation_result():
                 # Recreate comparison data from stored attempt
                 comparison_result = compare_texts(audio_file.reference_text, attempt.transcription or '')
                 
+                # Compare this attempt against the user's previous attempt on the same audio
+                improvement_data = calculate_improvement_dictation(
+                    session['user_id'], attempt.audio_id,
+                    attempt.accuracy_percentage or 0, attempt.time_taken or 0
+                )
+
                 results = {
+                    'audio_id': audio_file.id,
                     'audio_title': audio_file.title,
                     'words_typed': attempt.words_typed or 0,
                     'words_correct': attempt.words_correct or 0,
@@ -2217,7 +2253,8 @@ def dictation_result():
                     'attempt_number': attempt.attempt_number or 1,
                     'username': user.username,
                     'content_type': audio_file.content_type or 'practice',
-                    'enhanced_comparison': comparison_result['enhanced_comparison']
+                    'enhanced_comparison': comparison_result['enhanced_comparison'],
+                    'improvement_data': improvement_data
                 }
                 
                 # Clear session results
@@ -2240,7 +2277,13 @@ def dictation_result():
             # Recreate comparison data from stored attempt
             comparison_result = compare_texts(audio_file.reference_text, latest_attempt.transcription or '')
             
+            improvement_data = calculate_improvement_dictation(
+                session['user_id'], latest_attempt.audio_id,
+                latest_attempt.accuracy_percentage or 0, latest_attempt.time_taken or 0
+            )
+
             results = {
+                'audio_id': audio_file.id,
                 'audio_title': audio_file.title,
                 'words_typed': latest_attempt.words_typed or 0,
                 'words_correct': latest_attempt.words_correct or 0,
@@ -2253,7 +2296,8 @@ def dictation_result():
                 'attempt_number': latest_attempt.attempt_number or 1,
                 'username': user.username,
                 'content_type': audio_file.content_type or 'practice',
-                'enhanced_comparison': comparison_result['enhanced_comparison']
+                'enhanced_comparison': comparison_result['enhanced_comparison'],
+                'improvement_data': improvement_data
             }
             return render_template('dictation_result.html', results=results)
     
@@ -2286,8 +2330,19 @@ def typing_practice():
         # Add attributes to passage object
         passage.attempt_count = attempt_count
         passage.is_favourite = is_favourite
-    
-    return render_template('typing_practice.html', typing_passages=typing_passages)
+
+    # Overall completion progress for this user (typing passages have no
+    # speed/category grouping in the DB, so this is a single overall bucket)
+    total_passages = len(typing_passages)
+    completed_passages = sum(1 for p in typing_passages if p.attempt_count > 0)
+    typing_progress = {
+        'completed': completed_passages,
+        'total': total_passages,
+        'pending': max(0, total_passages - completed_passages),
+        'percentage': round((completed_passages / total_passages) * 100) if total_passages else 0
+    }
+
+    return render_template('typing_practice.html', typing_passages=typing_passages, typing_progress=typing_progress)
 
 @app.route('/typing-practice-advanced/<int:passage_id>')
 @login_required
@@ -2368,6 +2423,7 @@ def submit_typing_practice():
         # Store minimal results in session to avoid cookie size limit
         session['typing_results'] = {
             'attempt_id': attempt.id,  # Just store the attempt ID
+            'passage_id': passage.id,
             'passage_title': passage.title,
             'words_typed': words_typed,
             'words_correct': words_correct,
@@ -2404,7 +2460,13 @@ def typing_result():
                 # Recreate comparison data from stored attempt
                 comparison_result = compare_texts(passage.content, attempt.typed_text or '')
                 
+                improvement_data = calculate_improvement_typing(
+                    session['user_id'], attempt.passage_id,
+                    attempt.accuracy_percentage or 0, attempt.wpm or 0, attempt.time_taken or 0
+                )
+
                 results = {
+                    'passage_id': passage.id,
                     'passage_title': passage.title,
                     'words_typed': attempt.words_typed or 0,
                     'words_correct': attempt.words_correct or 0,
@@ -2416,7 +2478,8 @@ def typing_result():
                     'username': user.username,
                     'reference_text': passage.content,
                     'user_text': attempt.typed_text or '',
-                    'enhanced_comparison': comparison_result['enhanced_comparison']
+                    'enhanced_comparison': comparison_result['enhanced_comparison'],
+                    'improvement_data': improvement_data
                 }
                 
                 # Clear session results
@@ -2439,7 +2502,13 @@ def typing_result():
             # Recreate comparison data from stored attempt
             comparison_result = compare_texts(passage.content, latest_attempt.typed_text or '')
             
+            improvement_data = calculate_improvement_typing(
+                session['user_id'], latest_attempt.passage_id,
+                latest_attempt.accuracy_percentage or 0, latest_attempt.wpm or 0, latest_attempt.time_taken or 0
+            )
+
             results = {
+                'passage_id': passage.id,
                 'passage_title': passage.title,
                 'words_typed': latest_attempt.words_typed or 0,
                 'words_correct': latest_attempt.words_correct or 0,
@@ -2451,7 +2520,8 @@ def typing_result():
                 'username': user.username,
                 'reference_text': passage.content,
                 'user_text': latest_attempt.typed_text or '',
-                'enhanced_comparison': comparison_result['enhanced_comparison']
+                'enhanced_comparison': comparison_result['enhanced_comparison'],
+                'improvement_data': improvement_data
             }
             return render_template('typing_result.html', results=results)
     
