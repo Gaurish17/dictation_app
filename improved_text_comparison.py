@@ -106,125 +106,212 @@ def extract_words_only(text):
     words = re.findall(r"[a-zA-Z0-9']+", text)
     return words
 
-def compare_word_sequences(ref_words, typed_words):
+def _align_block(ref_words, typed_words, ref_off, typed_off):
     """
-    Compare two word sequences using difflib SequenceMatcher.
-    This provides accurate matching without duplicates.
-    
-    Returns:
-        list: List of comparison items with types (correct, wrong, missing, extra)
+    Optimally align two SHORT word sub-sequences using Needleman-Wunsch
+    global alignment, returning classified comparison items with indices
+    offset back into the full sequences.
+
+    This is the core fix for false errors: within a mismatched region,
+    identical words align at zero cost, so a correctly-typed word can never
+    be mis-flagged just because a neighbouring word was inserted or dropped.
+    Indices are offset by (ref_off, typed_off) so callers can run this on a
+    slice of the full text.
     """
-    # Use SequenceMatcher for accurate sequence comparison
-    matcher = SequenceMatcher(None, ref_words, typed_words)
-    
+    n = len(ref_words)
+    m = len(typed_words)
+
+    if n == 0:
+        return [{'type': 'extra', 'ref_word': '', 'typed_word': w,
+                 'ref_index': None, 'typed_index': typed_off + j}
+                for j, w in enumerate(typed_words)]
+    if m == 0:
+        return [{'type': 'missing', 'ref_word': w, 'typed_word': '',
+                 'ref_index': ref_off + i, 'typed_index': None}
+                for i, w in enumerate(ref_words)]
+
+    # Guard: the O(n*m) DP is only worth running on reasonably sized regions.
+    # A huge mismatched region means the texts diverged wildly (near-zero
+    # accuracy there anyway), so fall back to cheap positional pairing to keep
+    # the request fast. Realistic passages produce small regions and never hit
+    # this; it exists only to bound worst-case time on garbage input.
+    if n * m > 40000:
+        fb = []
+        for k in range(min(n, m)):
+            rw, tw = ref_words[k], typed_words[k]
+            if rw.lower() == tw.lower():
+                fb.append({'type': 'correct', 'ref_word': rw, 'typed_word': tw,
+                           'ref_index': ref_off + k, 'typed_index': typed_off + k})
+            else:
+                sim = word_similarity(rw, tw)
+                fb.append({'type': 'typo' if sim >= 0.6 else 'wrong', 'ref_word': rw,
+                           'typed_word': tw, 'ref_index': ref_off + k,
+                           'typed_index': typed_off + k, 'similarity': sim})
+        for k in range(min(n, m), n):
+            fb.append({'type': 'missing', 'ref_word': ref_words[k], 'typed_word': '',
+                       'ref_index': ref_off + k, 'typed_index': None})
+        for k in range(min(n, m), m):
+            fb.append({'type': 'extra', 'ref_word': '', 'typed_word': typed_words[k],
+                       'ref_index': None, 'typed_index': typed_off + k})
+        return fb
+
+    r_lc = [w.lower() for w in ref_words]
+    t_lc = [w.lower() for w in typed_words]
+
+    GAP = 1.0          # cost of a missing (ref) or extra (typed) word
+    SUB_DIFF = 2.0     # cost of aligning two unrelated words (== two gaps)
+
+    # Cache substitution costs so we don't recompute Levenshtein in backtrace
+    _sub_cache = {}
+    def sub_cost(i, j):
+        key = (i, j)
+        c = _sub_cache.get(key)
+        if c is not None:
+            return c
+        if r_lc[i] == t_lc[j]:
+            c = 0.0
+        else:
+            sim = word_similarity(ref_words[i], typed_words[j])
+            # A typo (high similarity) is cheaper than two gaps, so similar
+            # words align to each other; unrelated words cost the same as
+            # deleting one and inserting the other.
+            c = (1.0 - sim) if sim >= 0.6 else SUB_DIFF
+        _sub_cache[key] = c
+        return c
+
+    # DP cost matrix
+    dp = [[0.0] * (m + 1) for _ in range(n + 1)]
+    for i in range(1, n + 1):
+        dp[i][0] = i * GAP
+    for j in range(1, m + 1):
+        dp[0][j] = j * GAP
+    for i in range(1, n + 1):
+        row = dp[i]
+        prev = dp[i - 1]
+        for j in range(1, m + 1):
+            diag = prev[j - 1] + sub_cost(i - 1, j - 1)
+            up = prev[j] + GAP        # reference word missing from typed text
+            left = row[j - 1] + GAP   # extra word in typed text
+            row[j] = diag if (diag <= up and diag <= left) else (up if up <= left else left)
+
+    # Backtrace. Prefer the diagonal on ties so a genuine one-to-one change
+    # is reported as a single substitution rather than missing + extra.
+    i, j = n, m
+    aligned = []
+    while i > 0 or j > 0:
+        if i > 0 and j > 0 and dp[i][j] == dp[i - 1][j - 1] + sub_cost(i - 1, j - 1):
+            aligned.append(('sub', i - 1, j - 1))
+            i -= 1
+            j -= 1
+        elif i > 0 and dp[i][j] == dp[i - 1][j] + GAP:
+            aligned.append(('missing', i - 1, None))
+            i -= 1
+        else:
+            aligned.append(('extra', None, j - 1))
+            j -= 1
+    aligned.reverse()
+
     comparison = []
-    processed_ref_indices = set()
-    processed_typed_indices = set()
-    
-    # Get matching blocks from SequenceMatcher
-    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        if tag == 'equal':
-            # Words match correctly
-            for k in range(i2 - i1):
-                ref_idx = i1 + k
-                typed_idx = j1 + k
-                
+    for kind, ri, tj in aligned:
+        if kind == 'sub':
+            ref_word = ref_words[ri]
+            typed_word = typed_words[tj]
+            if ref_word.lower() == typed_word.lower():
                 comparison.append({
                     'type': 'correct',
-                    'ref_word': ref_words[ref_idx],
-                    'typed_word': typed_words[typed_idx],
-                    'ref_index': ref_idx,
-                    'typed_index': typed_idx
+                    'ref_word': ref_word,
+                    'typed_word': typed_word,
+                    'ref_index': ref_off + ri,
+                    'typed_index': typed_off + tj
                 })
-                processed_ref_indices.add(ref_idx)
-                processed_typed_indices.add(typed_idx)
-                
-        elif tag == 'replace':
-            # Words don't match - could be typos or completely wrong
-            ref_count = i2 - i1
-            typed_count = j2 - j1
-            
-            # Handle one-to-one replacements (likely typos)
-            for k in range(min(ref_count, typed_count)):
-                ref_idx = i1 + k
-                typed_idx = j1 + k
-                ref_word = ref_words[ref_idx]
-                typed_word = typed_words[typed_idx]
-                
-                # Check if it's a minor typo (high similarity)
+            else:
                 similarity = word_similarity(ref_word, typed_word)
-                
-                if similarity >= 0.6:  # Likely a typo
-                    comparison.append({
-                        'type': 'typo',
-                        'ref_word': ref_word,
-                        'typed_word': typed_word,
-                        'ref_index': ref_idx,
-                        'typed_index': typed_idx,
-                        'similarity': similarity
-                    })
-                else:  # Completely wrong word
-                    comparison.append({
-                        'type': 'wrong',
-                        'ref_word': ref_word,
-                        'typed_word': typed_word,
-                        'ref_index': ref_idx,
-                        'typed_index': typed_idx
-                    })
-                
-                processed_ref_indices.add(ref_idx)
-                processed_typed_indices.add(typed_idx)
-            
-            # Handle extra typed words in replacement
-            for k in range(min(ref_count, typed_count), typed_count):
-                typed_idx = j1 + k
                 comparison.append({
-                    'type': 'extra',
-                    'ref_word': '',
-                    'typed_word': typed_words[typed_idx],
-                    'ref_index': None,
-                    'typed_index': typed_idx
+                    'type': 'typo' if similarity >= 0.6 else 'wrong',
+                    'ref_word': ref_word,
+                    'typed_word': typed_word,
+                    'ref_index': ref_off + ri,
+                    'typed_index': typed_off + tj,
+                    'similarity': similarity
                 })
-                processed_typed_indices.add(typed_idx)
-            
-            # Handle missing reference words in replacement
-            for k in range(min(ref_count, typed_count), ref_count):
-                ref_idx = i1 + k
-                comparison.append({
-                    'type': 'missing',
-                    'ref_word': ref_words[ref_idx],
-                    'typed_word': '',
-                    'ref_index': ref_idx,
-                    'typed_index': None
-                })
-                processed_ref_indices.add(ref_idx)
-                
-        elif tag == 'delete':
-            # Words missing from typed text
+        elif kind == 'missing':
+            comparison.append({
+                'type': 'missing',
+                'ref_word': ref_words[ri],
+                'typed_word': '',
+                'ref_index': ref_off + ri,
+                'typed_index': None
+            })
+        else:  # extra
+            comparison.append({
+                'type': 'extra',
+                'ref_word': '',
+                'typed_word': typed_words[tj],
+                'ref_index': None,
+                'typed_index': typed_off + tj
+            })
+
+    return comparison
+
+
+def compare_word_sequences(ref_words, typed_words):
+    """
+    Compare two word sequences and classify each position as
+    correct / typo / wrong / missing / extra.
+
+    Hybrid strategy for speed AND correctness:
+      * difflib SequenceMatcher finds the long runs that genuinely match
+        (fast, and reliable anchors), plus the small mismatched regions
+        between them.
+      * Each mismatched ("replace") region is realigned with an optimal
+        word-level Needleman-Wunsch alignment (_align_block).
+
+    difflib alone paired the words inside a mismatched region purely by
+    position, so a single extra or omitted word (common when a typist
+    self-corrects, e.g. "of of" / "the the") shifted the pairing and every
+    correct word after it was marked wrong. Realigning those regions removes
+    the false errors, while the anchor-based structure keeps it fast enough
+    for long passages (the expensive alignment only runs on the small gaps).
+    """
+    # Match case-insensitively; disable autojunk so frequent short words
+    # (the, of, a) are not treated as junk in long passages.
+    matcher = SequenceMatcher(None, [w.lower() for w in ref_words],
+                              [w.lower() for w in typed_words], autojunk=False)
+
+    comparison = []
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
             for k in range(i2 - i1):
-                ref_idx = i1 + k
+                comparison.append({
+                    'type': 'correct',
+                    'ref_word': ref_words[i1 + k],
+                    'typed_word': typed_words[j1 + k],
+                    'ref_index': i1 + k,
+                    'typed_index': j1 + k
+                })
+        elif tag == 'delete':
+            for k in range(i2 - i1):
                 comparison.append({
                     'type': 'missing',
-                    'ref_word': ref_words[ref_idx],
+                    'ref_word': ref_words[i1 + k],
                     'typed_word': '',
-                    'ref_index': ref_idx,
+                    'ref_index': i1 + k,
                     'typed_index': None
                 })
-                processed_ref_indices.add(ref_idx)
-                
         elif tag == 'insert':
-            # Extra words in typed text
             for k in range(j2 - j1):
-                typed_idx = j1 + k
                 comparison.append({
                     'type': 'extra',
                     'ref_word': '',
-                    'typed_word': typed_words[typed_idx],
+                    'typed_word': typed_words[j1 + k],
                     'ref_index': None,
-                    'typed_index': typed_idx
+                    'typed_index': j1 + k
                 })
-                processed_typed_indices.add(typed_idx)
-    
+        elif tag == 'replace':
+            comparison.extend(
+                _align_block(ref_words[i1:i2], typed_words[j1:j2], i1, j1)
+            )
+
     return comparison
 
 def compare_punctuation(reference_text, typed_text):
