@@ -1034,10 +1034,33 @@ def analyze_common_mistakes(reference_text, user_text):
     try:
         import re
         from collections import Counter
-        
+
+        # Normalize typographic (curly) quotes and apostrophes to their plain
+        # ASCII forms before any comparison. Reference passages are frequently
+        # pasted with curly quotes (“ ” ‘ ’), but keyboards produce straight
+        # quotes (" '), so without this a perfectly typed answer was reported
+        # as "Missing/Extra" quotes. Also fold a few other unicode variants.
+        def _normalize_punct(text):
+            if not text:
+                return text
+            replacements = {
+                '“': '"', '”': '"',   # curly double quotes
+                '‘': "'", '’': "'",   # curly single quote / apostrophe
+                '‚': "'", '‛': "'",
+                '′': "'", '″': '"',   # prime / double prime
+                '–': '-', '—': '-',   # en / em dash
+                '…': '...',                # ellipsis
+            }
+            for src, dst in replacements.items():
+                text = text.replace(src, dst)
+            return text
+
+        reference_text = _normalize_punct(reference_text)
+        user_text = _normalize_punct(user_text)
+
         ref_words = reference_text.split()
         user_words = user_text.split()
-        
+
         mistakes = {
             'punctuation_errors': [],
             'spelling_errors': [],
@@ -1045,8 +1068,9 @@ def analyze_common_mistakes(reference_text, user_text):
             'missing_words': [],
             'common_patterns': []
         }
-        
-        # Analyze punctuation errors
+
+        # Analyze punctuation errors (counts by mark type; texts are already
+        # quote-normalized above so curly vs straight no longer counts as an error)
         punctuation_marks = [',', '.', '!', '?', ';', ':', '"', "'"]
         for mark in punctuation_marks:
             ref_count = reference_text.count(mark)
